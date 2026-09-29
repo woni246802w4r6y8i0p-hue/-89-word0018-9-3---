@@ -181,6 +181,34 @@
             background-color: var(--primary-hover);
         }
 
+        /* 단어 목록 헤더 및 백업 버튼 영역 */
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .backup-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        .mini-btn {
+            background-color: #f1f5f9;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .mini-btn:hover {
+            background-color: #e2e8f0;
+        }
+
         /* 단어 목록 스타일 */
         .word-list {
             display: flex;
@@ -356,7 +384,7 @@
             </div>
 
             <div class="form-group">
-                <label>예문 입력 칸 (여러 개 등록 가능, 언더바 _ 사용 가능)</label>
+                <label>예문 입력 칸 (여러 개 등록 가능, _ 사용 가능)</label>
                 <div id="exInputsContainer">
                     <div class="input-row">
                         <input type="text" class="ex-input" placeholder="예: I want to _ a business.">
@@ -370,7 +398,14 @@
 
         <!-- 2. 단어 목록 탭 -->
         <div id="tab-list" class="tab-content">
-            <h2 style="margin-bottom: 14px; font-size: 1.05rem;">단어장 관리 (<span id="wordCount">0</span>개)</h2>
+            <div class="list-header">
+                <h2 style="font-size: 1.05rem;">단어장 (<span id="wordCount">0</span>개)</h2>
+                <div class="backup-btns">
+                    <button class="mini-btn" onclick="exportData()">백업 다운</button>
+                    <button class="mini-btn" onclick="importDataClick()">파일 불러오기</button>
+                    <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+                </div>
+            </div>
             <div id="wordListContainer" class="word-list">
                 <!-- 동적 생성 -->
             </div>
@@ -399,10 +434,60 @@
 </div>
 
 <script>
-    let words = JSON.parse(localStorage.getItem('my_word_list_v4') || '[]');
+    // 영구적으로 고정된 저장소 이름 (앞으로 업데이트해도 데이터가 유지됩니다)
+    const STORAGE_KEY = 'my_word_list_permanent_v1';
+    let words = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 
     function saveWordsToStorage() {
-        localStorage.setItem('my_word_list_v4', JSON.stringify(words));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+    }
+
+    // 백업 파일 다운로드 기능
+    function exportData() {
+        if (words.length === 0) {
+            alert('백업할 단어가 없습니다.');
+            return;
+        }
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(words, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", "my_word_backup.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    function importDataClick() {
+        document.getElementById('importFile').click();
+    }
+
+    // 백업 파일 불러오기 기능
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedWords = JSON.parse(e.target.result);
+                if (Array.isArray(importedWords)) {
+                    if (confirm(`총 ${importedWords.length개의 단어를 불러옵니다. 기존 단어에 추가하시겠습니까? (취소 시 기존 단어가 덮어씌워집니다)`)) {
+                        words = [...words, ...importedWords];
+                    } else {
+                        words = importedWords;
+                    }
+                    saveWordsToStorage();
+                    renderWordList();
+                    alert('성공적으로 불러왔습니다!');
+                } else {
+                    alert('올바른 단어장 백업 파일이 아닙니다.');
+                }
+            } catch (err) {
+                alert('파일을 읽는 중 오류가 발생했습니다.');
+            }
+            event.target.value = '';
+        };
+        reader.readAsText(file);
     }
 
     function switchTab(tabName, btnElement) {
@@ -604,11 +689,9 @@
         let questionType = '단어 퀴즈';
         let questionText = correctItem.eng;
 
-        // 예문이 있고 랜덤으로 선택되면 예문 퀴즈 출제 (연속된 언더바나 단일 언더바 _ 를 모두 예쁘게 빈칸으로 변환)
         if (correctItem.examples && correctItem.examples.length > 0 && Math.random() > 0.4) {
             questionType = '예문 빈칸 퀴즈';
             const rawEx = correctItem.examples[Math.floor(Math.random() * correctItem.examples.length)];
-            // 언더바가 하나든 여러 개든 상관없이 통일된 빈칸(_______)으로 바꿔줌
             questionText = rawEx.replace(/_+/g, '_______');
         }
 
@@ -617,6 +700,7 @@
             if (idx !== correctIndex) {
                 item.meanings.forEach(m => {
                     if (m !== correctMea) {
+                        allOtherNames = allOtherMeanings; // typo 방지용 safe
                         allOtherMeanings.push(m);
                     }
                 });
@@ -663,6 +747,7 @@
                 } else {
                     btn.classList.add('incorrect');
                     Array.from(choicesContainer.children).forEach(b => {
+                        if (b.textContent === correctMea) b.classList.0 = true; // safe fallback
                         if (b.textContent === correctMea) b.classList.add('correct');
                     });
                 }
