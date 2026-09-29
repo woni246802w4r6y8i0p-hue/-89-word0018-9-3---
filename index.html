@@ -134,20 +134,15 @@
         }
 
         .sub-btn {
-            background-color: #f1f5f9;
-            color: var(--text-secondary);
-            border: 1px solid var(--border-color);
+            background-color: #fee2e2;
+            color: var(--danger);
+            border: none;
             padding: 12px 14px;
             border-radius: 12px;
             font-size: 0.85rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .sub-btn:hover {
-            background-color: #e2e8f0;
-            color: var(--danger);
+            flex-shrink: 0;
         }
 
         .add-meaning-btn {
@@ -155,9 +150,9 @@
             color: var(--primary);
             border: 1px dashed var(--primary);
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border-radius: 12px;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
             margin-bottom: 14px;
@@ -354,7 +349,7 @@
                         <input type="text" class="meaning-input" placeholder="예: 달리다">
                     </div>
                 </div>
-                <button type="button" class="add-meaning-btn" id="addMeaningFieldBtn">+ 뜻 칸 추가하기</button>
+                <button type="button" class="add-meaning-btn" onclick="addMeaningField()">+ 뜻 칸 추가하기</button>
             </div>
 
             <div class="form-group">
@@ -395,10 +390,10 @@
 </div>
 
 <script>
-    let words = JSON.parse(localStorage.getItem('my_word_list_multi_inputs') || '[]');
+    let words = JSON.parse(localStorage.getItem('my_word_list_v3') || '[]');
 
     function saveWordsToStorage() {
-        localStorage.setItem('my_word_list_multi_inputs', JSON.stringify(words));
+        localStorage.setItem('my_word_list_v3', JSON.stringify(words));
     }
 
     function switchTab(tabName, btnElement) {
@@ -415,8 +410,8 @@
         }
     }
 
-    // 뜻 입력 칸 추가 버튼 이벤트
-    document.getElementById('addMeaningFieldBtn').addEventListener('click', () => {
+    // 아이패드에서도 확실히 작동하도록 전역 함수로 분리한 뜻 칸 추가 함수
+    function addMeaningField() {
         const container = document.getElementById('meaningInputsContainer');
         const row = document.createElement('div');
         row.className = 'meaning-input-row';
@@ -425,7 +420,7 @@
             <button type="button" class="sub-btn" onclick="this.parentElement.remove()">삭제</button>
         `;
         container.appendChild(row);
-    });
+    }
 
     // 단어 추가 로직
     document.getElementById('addBtn').addEventListener('click', () => {
@@ -609,7 +604,7 @@
         const shuffledDistractors = uniqueDistractors.sort(() => 0.5 - Math.random()).slice(0, 4);
         const choices = [correctMea, ...shuffledDistractors].sort(() => 0.5 - Math.random());
 
- 퀴즈Area.innerHTML = '
+ 퀴즈 지역.innerHTML = '
  <div style="디스플레이: 유연성; 정당화 내용: 간격 사이; 정렬 items: 중앙; 여백 하단: 8 px;">
  <span style="font 크기: 0.85rem; 색상: var(--텍스트 보조);">문제 ${currentQuiz지수 + 1} / 5</span>
  <span class="quiz-badge">${질문.유형}//span>
@@ -655,4 +650,4 @@
 </대본>
 
 </몸>
-</html>
+</HTML>
