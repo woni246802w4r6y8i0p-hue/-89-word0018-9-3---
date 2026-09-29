@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>클라우드 위키 단어장</title>
+    <!-- 파이어베이스 SDK 불러오기 -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     
@@ -952,6 +953,7 @@
 </div>
 
 <script>
+    // 파이어베이스 클라우드 데이터베이스 설정
     const firebaseConfig = {
         apiKey: "AIzaSyD-TestKeyForDemoAppOnly123456789",
         authDomain: "vocab-app-demo.firebaseapp.com",
@@ -1069,27 +1071,17 @@
         loadWordsFromCloud();
     }
 
-    // 실시간 감지(onSnapshot)를 통한 단어장 불러오기 및 업데이트 알림 적용
+    // 클라우드 서버에서 데이터 불러오기 (실시간 연동)
     function loadWordsFromCloud() {
         const statusSpan = document.getElementById('syncStatus');
         if (db) {
-            statusSpan.textContent = "☁️ 실시간 동기화 중...";
-            
-            db.collection("vocab_folders").doc(currentFolder).onSnapshot((doc) => {
+            statusSpan.textContent = "☁️ 클라우드 동기화 중...";
+            db.collection("vocab_folders").doc(currentFolder).get().then((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
-                    const newWords = data.words || [];
-                    const newHistories = data.histories || [];
-                    const newReports = data.reports || [];
-
-                    // 기존 데이터와 달라졌다면 알림 배너 띄우기
-                    if (words.length > 0 && JSON.stringify(words) !== JSON.stringify(newWords)) {
-                        showUpdateBanner();
-                    }
-
-                    words = newWords;
-                    histories = newHistories;
-                    reports = newReports;
+                    words = data.words || [];
+                    histories = data.histories || [];
+                    reports = data.reports || [];
                 } else {
                     words = [];
                     histories = [];
@@ -1097,44 +1089,12 @@
                 }
                 statusSpan.textContent = "☁️ 연동됨 (" + currentFolder + ")";
                 updateActiveView();
-            }, (error) => {
-                console.log("실시간 연동 실패, 로컬 모드로 전환", error);
+            }).catch((error) => {
+                console.log("클라우드 연동 실패, 로컬 모드로 전환", error);
                 loadFromLocalFallback();
             });
         } else {
             loadFromLocalFallback();
-        }
-    }
-
-    // 문서 업데이트 시 상단에 띄워주는 새로고침 배너 함수
-    function showUpdateBanner() {
-        let banner = document.getElementById('updateBanner');
-        if (!banner) {
-            banner = document.createElement('div');
-            banner.id = 'updateBanner';
-            banner.style.cssText = `
-                position: fixed;
-                top: 16px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: var(--primary);
-                color: white;
-                padding: 10px 16px;
-                border-radius: 12px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                font-size: 0.85rem;
-                font-weight: 700;
-                z-index: 2000;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                animation: fadeInOut 0.3s ease;
-            `;
-            banner.innerHTML = `
-                <span>✨ 문서가 업데이트되었습니다!</span>
-                <button onclick="location.reload()" style="background:white; color:var(--primary); border:none; padding:4px 8px; border-radius:6px; font-weight:700; cursor:pointer;">새로고침</button>
-            `;
-            document.body.appendChild(banner);
         }
     }
 
