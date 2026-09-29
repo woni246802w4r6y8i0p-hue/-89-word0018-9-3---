@@ -410,7 +410,6 @@
         }
     }
 
-    // 아이패드에서도 확실히 작동하도록 전역 함수로 분리한 뜻 칸 추가 함수
     function addMeaningField() {
         const container = document.getElementById('meaningInputsContainer');
         const row = document.createElement('div');
@@ -422,7 +421,6 @@
         container.appendChild(row);
     }
 
-    // 단어 추가 로직
     document.getElementById('addBtn').addEventListener('click', () => {
         const eng = document.getElementById('engInput').value.trim();
         const meaningInputs = document.querySelectorAll('.meaning-input');
@@ -447,7 +445,6 @@
         words.push({ eng, meanings, ex });
         saveWordsToStorage();
 
-        // 입력창 초기화
         document.getElementById('engInput').value = '';
         document.getElementById('exInput').value = '';
         document.getElementById('meaningInputsContainer').innerHTML = `
@@ -458,7 +455,6 @@
         alert(`'${eng}' 단어가 저장되었습니다!`);
     });
 
-    // 단어 목록 렌더링
     function renderWordList() {
         const container = document.getElementById('wordListContainer');
         const countSpan = document.getElementById('wordCount');
@@ -565,10 +561,8 @@
         const correctIndex = quizList[currentQuizIndex];
         const correctItem = words[correctIndex];
 
-        // 1. 해당 단어의 여러 뜻 중 무작위로 하나를 정답으로 선택
         const correctMea = correctItem.meanings[Math.floor(Math.random() * correctItem.meanings.length)];
 
-        // 문제 유형 결정 (예문이 있으면 예문 모드, 없으면 단어 모드)
         let questionType = '단어 퀴즈';
         let questionText = correctItem.eng;
 
@@ -577,7 +571,6 @@
             questionText = correctItem.ex;
         }
 
-        // 2. 오답 선지 추출: 다른 단어들의 뜻 중에서 정답 문구와 겹치지 않는 것들만 수집
         let allOtherMeanings = [];
         words.forEach((item, idx) => {
             if (idx !== correctIndex) {
@@ -604,50 +597,50 @@
         const shuffledDistractors = uniqueDistractors.sort(() => 0.5 - Math.random()).slice(0, 4);
         const choices = [correctMea, ...shuffledDistractors].sort(() => 0.5 - Math.random());
 
- 퀴즈 지역.innerHTML = '
- <div style="디스플레이: 유연성; 정당화 내용: 간격 사이; 정렬 items: 중앙; 여백 하단: 8 px;">
- <span style="font 크기: 0.85rem; 색상: var(--텍스트 보조);">문제 ${currentQuiz지수 + 1} / 5</span>
- <span class="quiz-badge">${질문.유형}//span>
- </div>
- <div class="quiz 카드">
- <div class="quiz-질문">${이스케이프Html(질문 텍스트)}</div>
- <div class="choices" ID="choicesContainer"></div>
- </div>
- `
+        quizArea.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 0.85rem; color: var(--text-secondary);">문제 ${currentQuizIndex + 1} / 5</span>
+                <span class="quiz-badge">${questionType}</span>
+            </div>
+            <div class="quiz-card">
+                <div class="quiz-question">${escapeHtml(questionText)}</div>
+                <div class="choices" id="choicesContainer"></div>
+            </div>
+        `;
 
- constoicesContainer = document.getElementById('choicesContainer');
- 선택.각각(선택 사항)텍스트 => {
- const btn = document.createElement('버튼');
- btn.className = '선택-btn';
- btn.textContent = 선택텍스트;
- btn.addEventListener('클릭', () => {
- Array.from(Container.children 선택).각각에 대해 (b => b.disabled = true);
+        const choicesContainer = document.getElementById('choicesContainer');
+        choices.forEach(choiceText => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+            btn.textContent = choiceText;
+            btn.addEventListener('click', () => {
+                Array.from(choicesContainer.children).forEach(b => b.disabled = true);
 
- 만약 (선택 사항)텍스트 === correctMea) {
- btn.classList.add('올바른');
- 퀴즈점수++;
- } 또 다른 {
- btn.classList.add('잘못됨');
- Array.from(Container.children 선택).각각에 대해 (b => {
- 만약 (b.textContent === correctMea) b.classList.add('올바른');
- });
- }
+                if (choiceText === correctMea) {
+                    btn.classList.add('correct');
+                    quizScore++;
+                } else {
+                    btn.classList.add('incorrect');
+                    Array.from(choicesContainer.children).forEach(b => {
+                        if (b.textContent === correctMea) b.classList.add('correct');
+                    });
+                }
 
- setTimeout((() => {
- 현재 퀴즈인덱스++;
- 질문 표시();
- }, 1000);
- });
- 선택 항목Container.appendChild(btn);
- });
- }
+                setTimeout(() => {
+                    currentQuizIndex++;
+                    showQuestion();
+                }, 1000);
+            });
+            choicesContainer.appendChild(btn);
+        });
+    }
 
- 기능. 이스케이프Html(str) {
- str.replace(/[&<>')/g를 반환합니다, 
- 태그 => ({'&' &', '<: '<', '>', '>', '':', '', ''): }[태그] || 태그)
- );
- }
-</대본>
+    function escapeHtml(str) {
+        return str.replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+</script>
 
-</몸>
-</HTML>
+</body>
+</html>
