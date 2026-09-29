@@ -126,7 +126,7 @@
             border-color: var(--primary);
         }
 
-        .meaning-input-row {
+        .input-row {
             display: flex;
             gap: 8px;
             margin-bottom: 8px;
@@ -145,7 +145,7 @@
             flex-shrink: 0;
         }
 
-        .add-meaning-btn {
+        .add-sub-btn {
             background-color: #f8fafc;
             color: var(--primary);
             border: 1px dashed var(--primary);
@@ -159,7 +159,7 @@
             transition: background-color 0.2s;
         }
 
-        .add-meaning-btn:hover {
+        .add-sub-btn:hover {
             background-color: #eef2ff;
         }
 
@@ -211,11 +211,14 @@
             font-weight: 600;
         }
 
-        .word-info .ex {
+        .word-info .ex-list {
             font-size: 0.82rem;
             color: var(--text-secondary);
             margin-top: 4px;
             font-style: italic;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
         .action-buttons {
@@ -263,7 +266,7 @@
         }
 
         .quiz-question {
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             font-weight: 800;
             margin: 16px 0 24px 0;
             color: var(--text-color);
@@ -271,7 +274,7 @@
             border: 1px solid var(--border-color);
             padding: 20px;
             border-radius: 16px;
-            line-height: 1.5;
+            line-height: 1.6;
         }
 
         .choices {
@@ -345,17 +348,23 @@
             <div class="form-group">
                 <label>뜻 입력 칸 (여러 개 등록 가능)</label>
                 <div id="meaningInputsContainer">
-                    <div class="meaning-input-row">
+                    <div class="input-row">
                         <input type="text" class="meaning-input" placeholder="예: 달리다">
                     </div>
                 </div>
-                <button type="button" class="add-meaning-btn" onclick="addMeaningField()">+ 뜻 칸 추가하기</button>
+                <button type="button" class="add-sub-btn" onclick="addMeaningField()">+ 뜻 칸 추가하기</button>
             </div>
 
             <div class="form-group">
-                <label for="exInput">예문 (선택사항, 빈칸은 ____ 로 표시)</label>
-                <input type="text" id="exInput" placeholder="예: I want to ____ a business.">
+                <label>예문 입력 칸 (여러 개 등록 가능, 언더바 _ 사용 가능)</label>
+                <div id="exInputsContainer">
+                    <div class="input-row">
+                        <input type="text" class="ex-input" placeholder="예: I want to _ a business.">
+                    </div>
+                </div>
+                <button type="button" class="add-sub-btn" onclick="addExField()">+ 예문 칸 추가하기</button>
             </div>
+
             <button class="btn" id="addBtn">단어 추가하기</button>
         </div>
 
@@ -390,10 +399,10 @@
 </div>
 
 <script>
-    let words = JSON.parse(localStorage.getItem('my_word_list_v3') || '[]');
+    let words = JSON.parse(localStorage.getItem('my_word_list_v4') || '[]');
 
     function saveWordsToStorage() {
-        localStorage.setItem('my_word_list_v3', JSON.stringify(words));
+        localStorage.setItem('my_word_list_v4', JSON.stringify(words));
     }
 
     function switchTab(tabName, btnElement) {
@@ -413,9 +422,20 @@
     function addMeaningField() {
         const container = document.getElementById('meaningInputsContainer');
         const row = document.createElement('div');
-        row.className = 'meaning-input-row';
+        row.className = 'input-row';
         row.innerHTML = `
             <input type="text" class="meaning-input" placeholder="추가 뜻 입력">
+            <button type="button" class="sub-btn" onclick="this.parentElement.remove()">삭제</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function addExField() {
+        const container = document.getElementById('exInputsContainer');
+        const row = document.createElement('div');
+        row.className = 'input-row';
+        row.innerHTML = `
+            <input type="text" class="ex-input" placeholder="추가 예문 입력 (_ 사용 가능)">
             <button type="button" class="sub-btn" onclick="this.parentElement.remove()">삭제</button>
         `;
         container.appendChild(row);
@@ -424,7 +444,7 @@
     document.getElementById('addBtn').addEventListener('click', () => {
         const eng = document.getElementById('engInput').value.trim();
         const meaningInputs = document.querySelectorAll('.meaning-input');
-        const ex = document.getElementById('exInput').value.trim();
+        const exInputs = document.querySelectorAll('.ex-input');
 
         if (!eng) {
             alert('영어 단어를 입력해주세요!');
@@ -442,14 +462,25 @@
             return;
         }
 
-        words.push({ eng, meanings, ex });
+        const examples = [];
+        exInputs.forEach(input => {
+            const val = input.value.trim();
+            if (val) examples.push(val);
+        });
+
+        words.push({ eng, meanings, examples });
         saveWordsToStorage();
 
+        // 입력창 초기화
         document.getElementById('engInput').value = '';
-        document.getElementById('exInput').value = '';
         document.getElementById('meaningInputsContainer').innerHTML = `
-            <div class="meaning-input-row">
+            <div class="input-row">
                 <input type="text" class="meaning-input" placeholder="예: 달리다">
+            </div>
+        `;
+        document.getElementById('exInputsContainer').innerHTML = `
+            <div class="input-row">
+                <input type="text" class="ex-input" placeholder="예: I want to _ a business.">
             </div>
         `;
         alert(`'${eng}' 단어가 저장되었습니다!`);
@@ -472,12 +503,16 @@
             item.className = 'word-item';
 
             const meaDisplay = itemObj.meanings.join(', ');
+            let exHtml = '';
+            if (itemObj.examples && itemObj.examples.length > 0) {
+                exHtml = `<div class="ex-list">예문: <br>` + itemObj.examples.map(ex => `- ${escapeHtml(ex)}`).join('<br>') + `</div>`;
+            }
 
             item.innerHTML = `
                 <div class="word-info">
                     <div class="eng">${escapeHtml(itemObj.eng)}</div>
                     <div class="mea">뜻: ${escapeHtml(meaDisplay)}</div>
-                    ${itemObj.ex ? `<div class="ex">예문: ${escapeHtml(itemObj.ex)}</div>` : ''}
+                    ${exHtml}
                 </div>
             `;
 
@@ -492,8 +527,10 @@
                 if (newEng === null) return;
                 const newMeaRaw = prompt('수정할 뜻을 입력하세요 (콤마로 구분):', itemObj.meanings.join(', '));
                 if (newMeaRaw === null) return;
-                const newEx = prompt('수정할 예문을 입력하세요 (없으면 빈칸):', itemObj.ex || '');
-                if (newEx === null) return;
+                
+                const currentExStr = itemObj.examples ? itemObj.examples.join(' / ') : '';
+                const newExRaw = prompt('수정할 예문들을 입력하세요 (구분은 / 기호 사용, 없으면 빈칸):', currentExStr);
+                if (newExRaw === null) return;
 
                 if (!newEng.trim() || !newMeaRaw.trim()) {
                     alert('단어와 뜻은 반드시 입력해야 합니다.');
@@ -501,8 +538,9 @@
                 }
 
                 const newMeanings = newMeaRaw.split(',').map(m => m.trim()).filter(m => m !== '');
+                const newExamples = newExRaw ? newExRaw.split('/').map(e => e.trim()).filter(e => e !== '') : [];
 
-                words[index] = { eng: newEng.trim(), meanings: newMeanings, ex: newEx.trim() };
+                words[index] = { eng: newEng.trim(), meanings: newMeanings, examples: newExamples };
                 saveWordsToStorage();
                 renderWordList();
             });
@@ -566,9 +604,12 @@
         let questionType = '단어 퀴즈';
         let questionText = correctItem.eng;
 
-        if (correctItem.ex && correctItem.ex.trim() !== '') {
+        // 예문이 있고 랜덤으로 선택되면 예문 퀴즈 출제 (연속된 언더바나 단일 언더바 _ 를 모두 예쁘게 빈칸으로 변환)
+        if (correctItem.examples && correctItem.examples.length > 0 && Math.random() > 0.4) {
             questionType = '예문 빈칸 퀴즈';
-            questionText = correctItem.ex;
+            const rawEx = correctItem.examples[Math.floor(Math.random() * correctItem.examples.length)];
+            // 언더바가 하나든 여러 개든 상관없이 통일된 빈칸(_______)으로 바꿔줌
+            questionText = rawEx.replace(/_+/g, '_______');
         }
 
         let allOtherMeanings = [];
