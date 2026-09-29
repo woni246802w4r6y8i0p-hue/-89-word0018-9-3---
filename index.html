@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>클라우드 위키 단어장</title>
-    <!-- Firebase 실시간 데이터베이스 연동용 CDN -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     
@@ -62,7 +61,6 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        /* 폴더 위키 바 */
         .folder-bar {
             background-color: #eef2ff;
             padding: 10px 16px;
@@ -121,7 +119,6 @@
             display: block;
         }
 
-        /* 네비게이션 바 */
         nav {
             display: flex;
             background-color: white;
@@ -172,6 +169,35 @@
         }
 
         input:focus, select:focus {
+            border-color: var(--primary);
+        }
+
+        .summary-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .chip {
+            background-color: #f1f5f9;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chip:hover {
+            background-color: #e2e8f0;
+        }
+
+        .chip.selected {
+            background-color: var(--primary);
+            color: white;
             border-color: var(--primary);
         }
 
@@ -330,7 +356,6 @@
             cursor: pointer;
         }
 
-        /* 모달 팝업 스타일 */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -368,7 +393,7 @@
             margin-top: 14px;
         }
 
-        /* 히스토리 리스트 스타일 */
+        /* 상세 히스토리 내역 스타일 */
         .history-item {
             padding: 12px;
             border: 1px solid var(--border-color);
@@ -389,11 +414,27 @@
 
         .history-desc {
             font-size: 0.9rem;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--text-color);
         }
 
-        /* 퀴즈 스타일 */
+        .history-diff-box {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .diff-added { color: var(--success); font-weight: 600; }
+        .diff-removed { color: var(--danger); font-weight: 600; }
+        .diff-changed { color: var(--warning); font-weight: 600; }
+
         .quiz-card {
             text-align: center;
         }
@@ -480,7 +521,6 @@
 <div class="container">
     <header>클라우드 위키 단어장</header>
     
-    <!-- 폴더 자체가 위키 페이지인 영역 -->
     <div class="folder-bar">
         <label for="folderInput">📁 위키문서:</label>
         <input type="text" id="folderInput" placeholder="폴더명" onchange="changeFolder()">
@@ -519,8 +559,14 @@
             </div>
 
             <div class="form-group">
-                <label for="addEditSummary">편집 요약 (어떤 내용을 고쳤나요?)</label>
-                <input type="text" id="addEditSummary" placeholder="예: 새로운 단어 기여 및 예문 보완">
+                <label>편집 요약 (어떤 내용을 고쳤나요?)</label>
+                <div class="summary-chips" id="addSummaryChips">
+                    <div class="chip selected" onclick="selectSummary('add', '새로운 단어 기여 및 보완', this)">새로운 단어 기여</div>
+                    <div class="chip" onclick="selectSummary('add', '오타 수정 및 의미 다듬기', this)">오타 수정</div>
+                    <div class="chip" onclick="selectSummary('add', '예문 추가 및 수정', this)">예문 추가</div>
+                    <div class="chip" onclick="selectSummary('add', '기타', this)">기타 (직접 입력)</div>
+                </div>
+                <input type="text" id="addEditSummaryCustom" style="display: none; margin-top: 6px;" placeholder="직접 편집 요약을 입력하세요">
             </div>
 
             <button class="btn" id="addBtn">위키 문서에 기여하기</button>
@@ -532,7 +578,6 @@
                 <h2 style="font-size: 1.05rem;">단어 목록 (<span id="wordCount">0</span>개)</h2>
             </div>
             
-            <!-- 정렬 제어 바 -->
             <div class="sort-controls">
                 <select id="sortBy" onchange="renderWordList()">
                     <option value="reg">등록순 (기본)</option>
@@ -541,20 +586,15 @@
                 <button id="sortOrderBtn" onclick="toggleSortOrder()">⬆️ 오름차순</button>
             </div>
 
-            <div id="wordListContainer" class="word-list">
-                <!-- 동적 생성 -->
-            </div>
+            <div id="wordListContainer" class="word-list"></div>
         </div>
 
         <!-- 3. 퀴즈 탭 -->
         <div id="tab-quiz" class="tab-content">
-            <div id="quizArea">
-                <!-- 동적 생성 -->
-            </div>
+            <div id="quizArea"></div>
         </div>
     </div>
 
-    <!-- 하단 네비게이션 -->
     <nav>
         <button class="nav-btn active" onclick="switchTab('add', this)">
             ➕ 단어 추가
@@ -587,10 +627,18 @@
             <div id="editExContainer"></div>
             <button type="button" class="add-sub-btn" onclick="addExField('editExContainer')">+ 예문 칸 추가</button>
         </div>
+        
         <div class="form-group">
             <label>편집 요약</label>
-            <input type="text" id="editSummaryInput" placeholder="예: 의미 다듬기 및 오타 수정">
+            <div class="summary-chips" id="editSummaryChips">
+                <div class="chip selected" onclick="selectSummary('edit', '의미 다듬기 및 오타 수정', this)">의미/오타 수정</div>
+                <div class="chip" onclick="selectSummary('edit', '예문 보완', this)">예문 보완</div>
+                <div class="chip" onclick="selectSummary('edit', '내용 전면 개정', this)">전면 개정</div>
+                <div class="chip" onclick="selectSummary('edit', '기타', this)">기타 (직접 입력)</div>
+            </div>
+            <input type="text" id="editSummaryCustom" style="display: none; margin-top: 6px;" placeholder="직접 편집 요약을 입력하세요">
         </div>
+
         <div class="modal-btns">
             <button class="btn" style="background-color:#94a3b8;" onclick="closeEditModal()">취소</button>
             <button class="btn" onclick="saveEditedWord()">저장하기</button>
@@ -601,12 +649,10 @@
 <!-- 폴더 역사(히스토리) 보기 모달 창 -->
 <div id="historyModal" class="modal-overlay">
     <div class="modal-card">
-        <h3>📜 현재 폴더 위키 역사 (History)</h3>
-        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">이전 버전으로 되돌리면 해당 시점의 상태로 폴더가 즉시 복구됩니다.</p>
+        <h3>📜 위키 편집 역사 (상세 변경 내역)</h3>
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">각 버전에서 어떤 단어가 추가, 수정, 삭제되었는지 확인할 수 있습니다.</p>
         
-        <div id="historyListContainer" style="max-height: 320px; overflow-y: auto;">
-            <!-- 동적 생성 -->
-        </div>
+        <div id="historyListContainer" style="max-height: 350px; overflow-y: auto;"></div>
 
         <div class="modal-btns" style="margin-top:16px;">
             <button class="btn" style="background-color:#94a3b8;" onclick="closeHistoryModal()">닫기</button>
@@ -653,7 +699,40 @@
     document.getElementById('folderInput').value = currentFolder;
     let words = [];
     let histories = [];
-    let isAscending = true; // 오름차순(true) / 내림차순(false)
+    let isAscending = true;
+
+    let summaryState = {
+        add: { type: '새로운 단어 기여 및 보완', custom: '' },
+        edit: { type: '의미 다듬기 및 오타 수정', custom: '' }
+    };
+
+    function selectSummary(context, text, chipElement) {
+        const containerId = context === 'add' ? 'addSummaryChips' : 'editSummaryChips';
+        const customInputId = context === 'add' ? 'addEditSummaryCustom' : 'editSummaryCustom';
+
+        document.querySelectorAll(`#${containerId} .chip`).forEach(c => c.classList.remove('selected'));
+        chipElement.classList.add('selected');
+
+        summaryState[context].type = text;
+        const customInput = document.getElementById(customInputId);
+
+        if (text === '기타') {
+            customInput.style.display = 'block';
+            customInput.focus();
+        } else {
+            customInput.style.display = 'none';
+            customInput.value = '';
+        }
+    }
+
+    function getFinalSummary(context) {
+        const state = summaryState[context];
+        if (state.type === '기타') {
+            const customInputVal = document.getElementById(context === 'add' ? 'addEditSummaryCustom' : 'editSummaryCustom').value.trim();
+            return customInputVal || '기타 편집';
+        }
+        return state.type;
+    }
 
     let editorName = localStorage.getItem('wiki_editor_name');
     if (!editorName) {
@@ -705,12 +784,47 @@
         updateActiveView();
     }
 
+    // 단어장 변화를 비교하여 상세 diff(변경 내역) 생성
+    function generateDiff(oldWords, newWords) {
+        const diffs = [];
+        const oldMap = new Map(oldWords.map(w => [w.eng, w]));
+        const newMap = new Map(newWords.map(w => [w.eng, w]));
+
+        // 추가되거나 수정된 것 확인
+        newWords.forEach(nw => {
+            if (!oldMap.has(nw.eng)) {
+                diffs.push(`<span class="diff-added">+ '${escapeHtml(nw.eng)}' 추가됨 (${nw.meanings.join(', ')})</span>`);
+            } else {
+                const ow = oldMap.get(nw.eng);
+                if (JSON.stringify(ow) !== JSON.stringify(nw)) {
+                    diffs.push(`<span class="diff-changed">~ '${escapeHtml(nw.eng)}' 수정됨</span>`);
+                }
+            }
+        });
+
+        // 삭제된 것 확인
+        oldWords.forEach(ow => {
+            if (!newMap.has(ow.eng)) {
+                diffs.push(`<span class="diff-removed">- '${escapeHtml(ow.eng)}' 삭제됨</span>`);
+            }
+        });
+
+        if (diffs.length === 0) return '<span style="color:var(--text-secondary)">변경 내용 없음</span>';
+        return diffs.join('<br>');
+    }
+
     function saveWordsWithHistory(summaryText) {
         const timestamp = new Date().toLocaleString();
+        
+        // 직전 상태와 비교하기 위해 바로 이전 스냅샷 가져오기
+        const previousSnapshot = histories.length > 0 ? histories[0].wordsSnapshot : [];
+        const diffSummaryHtml = generateDiff(previousSnapshot, words);
+
         const newHistoryItem = {
             time: timestamp,
             editor: editorName,
             summary: summaryText || '내용 수정',
+            diffHtml: diffSummaryHtml,
             wordsSnapshot: JSON.parse(JSON.stringify(words))
         };
 
@@ -776,7 +890,7 @@
         const eng = document.getElementById('engInput').value.trim();
         const meaningInputs = document.querySelectorAll('#meaningInputsContainer .meaning-input');
         const exInputs = document.querySelectorAll('#exInputsContainer .ex-input');
-        const summary = document.getElementById('addEditSummary').value.trim() || `'${eng}' 단어 추가`;
+        const summary = getFinalSummary('add');
 
         if (!eng) {
             alert('영어 단어를 입력해주세요!');
@@ -804,7 +918,8 @@
         saveWordsWithHistory(summary);
 
         document.getElementById('engInput').value = '';
-        document.getElementById('addEditSummary').value = '';
+        document.getElementById('addEditSummaryCustom').style.display = 'none';
+        document.getElementById('addEditSummaryCustom').value = '';
         document.getElementById('meaningInputsContainer').innerHTML = `
             <div class="input-row">
                 <input type="text" class="meaning-input" placeholder="예: 달리다">
@@ -818,12 +933,6 @@
         alert(`[${currentFolder}] 위키 문서에 '${eng}' 단어가 기여되었습니다!`);
     });
 
-    function openEditModal(index) {
-        // 실제 원본 인덱스를 찾기 위해 현재 정렬된 상태의 렌더링용 배열에서 원래 인덱스를 매핑해야 하지만, 
-        // 간단한 편집을 위해 단어 객체 자체를 찾거나 인덱스를 안전하게 넘깁니다.
-    }
-
-    // 수정 모달을 안전하게 처리하기 위한 전역 변수
     let editingOriginalIndex = null;
 
     function openEditModalByObject(engText) {
@@ -833,7 +942,6 @@
         const itemObj = words[index];
 
         document.getElementById('editEngInput').value = itemObj.eng;
-        document.getElementById('editSummaryInput').value = `'${itemObj.eng}' 단어 수정`;
 
         const meaningContainer = document.getElementById('editMeaningContainer');
         meaningContainer.innerHTML = '';
@@ -844,6 +952,9 @@
         if (itemObj.examples) {
             itemObj.examples.forEach(ex => addExField('editExContainer', ex));
         }
+
+        document.getElementById('editSummaryCustom').style.display = 'none';
+        document.getElementById('editSummaryCustom').value = '';
 
         document.getElementById('editModal').style.display = 'flex';
     }
@@ -859,7 +970,7 @@
         const newEng = document.getElementById('editEngInput').value.trim();
         const meaningInputs = document.querySelectorAll('#editMeaningContainer .meaning-input');
         const exInputs = document.querySelectorAll('#editExContainer .ex-input');
-        const summary = document.getElementById('editSummaryInput').value.trim() || `'${newEng}' 수정`;
+        const summary = getFinalSummary('edit');
 
         if (!newEng) {
             alert('영어 단어를 입력해주세요!');
@@ -890,7 +1001,6 @@
         alert('위키 문서 내용이 성공적으로 수정되었습니다!');
     }
 
-    // 역사 모달 열기/닫기
     function openHistoryModal() {
         const container = document.getElementById('historyListContainer');
         container.innerHTML = '';
@@ -906,7 +1016,10 @@
                         <span>👤 ${escapeHtml(hist.editor)}</span>
                         <span>🕒 ${hist.time}</span>
                     </div>
-                    <div class="history-desc">${escapeHtml(hist.summary)} (단어 ${hist.wordsSnapshot.length}개)</div>
+                    <div class="history-desc">사유: ${escapeHtml(hist.summary)}</div>
+                    <div class="history-diff-box">
+                        ${hist.diffHtml || '상세 내역 없음'}
+                    </div>
                     <button class="folder-btn" style="align-self: flex-start; margin-top:4px;" onclick="restoreVersion(${hIndex})">이 버전으로 되돌리기(복구)</button>
                 `;
                 container.appendChild(div);
@@ -931,7 +1044,6 @@
         }
     }
 
-    // 복제/합치기 모달
     function openCloneMergeModal() {
         document.getElementById('cloneMergeModal').style.display = 'flex';
     }
@@ -998,7 +1110,7 @@
     function toggleSortOrder() {
         isAscending = !isAscending;
         const btn = document.getElementById('sortOrderBtn');
-        btn.textContent = isAscending ? "⬆️ 오름차순" : "⬇️ 내림차순";
+        btn.textContent = isAscending ? "⬆️ 오름차순" : "⬇️ 내름차순";
         renderWordList();
     }
 
@@ -1015,7 +1127,6 @@
             return;
         }
 
-        // 정렬 로직 복사본 생성
         let displayWords = [...words];
 
         if (sortBy === 'alpha') {
@@ -1027,7 +1138,6 @@
                 return 0;
             });
         } else {
-            // 등록순 (배열 인덱스 기준)
             if (!isAscending) {
                 displayWords.reverse();
             }
