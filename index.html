@@ -393,7 +393,6 @@
             margin-top: 14px;
         }
 
-        /* 상세 히스토리 내역 스타일 */
         .history-item {
             padding: 12px;
             border: 1px solid var(--border-color);
@@ -402,7 +401,7 @@
             background: #f8fafc;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
         }
 
         .history-meta {
@@ -427,7 +426,15 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            max-height: 120px;
+        }
+
+        .snapshot-box {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            max-height: 100px;
             overflow-y: auto;
         }
 
@@ -649,10 +656,10 @@
 <!-- 폴더 역사(히스토리) 보기 모달 창 -->
 <div id="historyModal" class="modal-overlay">
     <div class="modal-card">
-        <h3>📜 위키 편집 역사 (상세 변경 내역)</h3>
-        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">각 버전에서 어떤 단어가 추가, 수정, 삭제되었는지 확인할 수 있습니다.</p>
+        <h3>📜 위키 편집 역사 (버전 관리)</h3>
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">원하는 과거 버전을 선택하여 현재 문서로 되돌리거나, 새 복사 폴더로 독립시킬 수 있습니다.</p>
         
-        <div id="historyListContainer" style="max-height: 350px; overflow-y: auto;"></div>
+        <div id="historyListContainer" style="max-height: 380px; overflow-y: auto;"></div>
 
         <div class="modal-btns" style="margin-top:16px;">
             <button class="btn" style="background-color:#94a3b8;" onclick="closeHistoryModal()">닫기</button>
@@ -784,16 +791,14 @@
         updateActiveView();
     }
 
-    // 단어장 변화를 비교하여 상세 diff(변경 내역) 생성
     function generateDiff(oldWords, newWords) {
         const diffs = [];
         const oldMap = new Map(oldWords.map(w => [w.eng, w]));
         const newMap = new Map(newWords.map(w => [w.eng, w]));
 
-        // 추가되거나 수정된 것 확인
         newWords.forEach(nw => {
             if (!oldMap.has(nw.eng)) {
-                diffs.push(`<span class="diff-added">+ '${escapeHtml(nw.eng)}' 추가됨 (${nw.meanings.join(', ')})</span>`);
+                diffs.push(`<span class="diff-added">+ '${escapeHtml(nw.eng)}' 추가됨</span>`);
             } else {
                 const ow = oldMap.get(nw.eng);
                 if (JSON.stringify(ow) !== JSON.stringify(nw)) {
@@ -802,7 +807,6 @@
             }
         });
 
-        // 삭제된 것 확인
         oldWords.forEach(ow => {
             if (!newMap.has(ow.eng)) {
                 diffs.push(`<span class="diff-removed">- '${escapeHtml(ow.eng)}' 삭제됨</span>`);
@@ -815,8 +819,6 @@
 
     function saveWordsWithHistory(summaryText) {
         const timestamp = new Date().toLocaleString();
-        
-        // 직전 상태와 비교하기 위해 바로 이전 스냅샷 가져오기
         const previousSnapshot = histories.length > 0 ? histories[0].wordsSnapshot : [];
         const diffSummaryHtml = generateDiff(previousSnapshot, words);
 
@@ -1011,6 +1013,12 @@
             histories.forEach((hist, hIndex) => {
                 const div = document.createElement('div');
                 div.className = 'history-item';
+                
+                let snapshotWordsText = '<span style="color:var(--text-secondary)">저장된 단어 없음</span>';
+                if (hist.wordsSnapshot && hist.wordsSnapshot.length > 0) {
+                    snapshotWordsText = hist.wordsSnapshot.map(w => `• <b>${escapeHtml(w.eng)}</b> (${escapeHtml(w.meanings.join(', '))})`).join('<br>');
+                }
+
                 div.innerHTML = `
                     <div class="history-meta">
                         <span>👤 ${escapeHtml(hist.editor)}</span>
@@ -1018,9 +1026,17 @@
                     </div>
                     <div class="history-desc">사유: ${escapeHtml(hist.summary)}</div>
                     <div class="history-diff-box">
-                        ${hist.diffHtml || '상세 내역 없음'}
+                        <span style="font-weight:700; margin-bottom:2px; display:block;">변경 요약:</span>
+                        ${hist.diffHtml || '내역 없음'}
                     </div>
-                    <button class="folder-btn" style="align-self: flex-start; margin-top:4px;" onclick="restoreVersion(${hIndex})">이 버전으로 되돌리기(복구)</button>
+                    <div style="font-size:0.8rem; font-weight:700; margin-top:2px;">당시 버전의 단어 목록 (${hist.wordsSnapshot ? hist.wordsSnapshot.length : 0}개):</div>
+                    <div class="snapshot-box">
+                        ${snapshotWordsText}
+                    </div>
+                    <div style="display: flex; gap: 6px; margin-top: 4px;">
+                        <button class="folder-btn" style="background-color:var(--primary); color:white;" onclick="restoreVersion(${hIndex})">↩️ 이 버전으로 되돌리기</button>
+                        <button class="folder-btn" style="background-color:var(--success); color:white; border-color:var(--success);" onclick="cloneVersionAsNewFolder(${hIndex})">📋 이 버전으로 새 복사폴더 만들기</button>
+                    </div>
                 `;
                 container.appendChild(div);
             });
@@ -1035,13 +1051,34 @@
 
     function restoreVersion(hIndex) {
         const targetHist = histories[hIndex];
-        if (confirm(`[${targetHist.time}] 버전으로 문서를 복구하시겠습니까?`)) {
+        if (confirm(`[${targetHist.time}] (사유: ${targetHist.summary}) 버전으로 문서를 복구하시겠습니까?`)) {
             words = JSON.parse(JSON.stringify(targetHist.wordsSnapshot));
             saveWordsWithHistory(`역사 복구: ${targetHist.summary}`);
             closeHistoryModal();
             renderWordList();
             alert('선택하신 버전으로 성공적으로 복구되었습니다!');
         }
+    }
+
+    function cloneVersionAsNewFolder(hIndex) {
+        const targetHist = histories[hIndex];
+        const newName = prompt('새로운 위키 문서 이름을 입력하세요:', currentFolder + '_history_copy');
+        if (!newName) return;
+
+        const trimmedName = newName.trim();
+        const clonedWords = JSON.parse(JSON.stringify(targetHist.wordsSnapshot));
+
+        currentFolder = trimmedName;
+        document.getElementById('folderInput').value = currentFolder;
+        localStorage.setItem('current_vocab_folder', currentFolder);
+        
+        words = clonedWords;
+        histories = []; // 새 폴더이므로 초기화 후 저장
+        saveWordsWithHistory(`과거 버전(${targetHist.time})에서 복제 생성`);
+        
+        closeHistoryModal();
+        renderWordList();
+        alert(`과거 버전을 기반으로 '${currentFolder}' 문서가 새로 생성되었습니다!`);
     }
 
     function openCloneMergeModal() {
