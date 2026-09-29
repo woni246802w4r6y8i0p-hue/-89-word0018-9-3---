@@ -131,14 +131,14 @@
             background: none;
             border: none;
             color: var(--text-secondary);
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 600;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 4px;
             cursor: pointer;
-            padding: 8px;
+            padding: 8px 4px;
             transition: color 0.2s;
         }
 
@@ -260,9 +260,19 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             flex-wrap: wrap;
             gap: 8px;
+        }
+
+        .search-box {
+            margin-bottom: 10px;
+        }
+
+        .search-box input {
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            border-radius: 12px;
         }
 
         .sort-controls {
@@ -509,9 +519,10 @@
 
         .quiz-result {
             text-align: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
-            margin-top: 40px;
+            margin-top: 20px;
+            line-height: 1.6;
         }
 
         .empty-state {
@@ -533,6 +544,7 @@
         <input type="text" id="folderInput" placeholder="폴더명" onchange="changeFolder()">
         <button class="folder-btn" style="background-color:var(--warning); color:white; border-color:var(--warning);" onclick="openHistoryModal()">📜 역사</button>
         <button class="folder-btn" onclick="openCloneMergeModal()">📋 복제/합치기</button>
+        <button class="folder-btn" style="background-color:var(--success); color:white; border-color:var(--success);" onclick="openExcelModal()">📊 엑셀관리</button>
         <span id="syncStatus" style="font-size: 0.7rem; color: var(--success); font-weight: 600; width: 100%; text-align: right;">☁️ 연동됨</span>
     </div>
 
@@ -585,6 +597,11 @@
                 <h2 style="font-size: 1.05rem;">단어 목록 (<span id="wordCount">0</span>개)</h2>
             </div>
             
+            <!-- 단어 검색창 (기능 2) -->
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 단어 또는 뜻 검색..." oninput="renderWordList()">
+            </div>
+
             <div class="sort-controls">
                 <select id="sortBy" onchange="renderWordList()">
                     <option value="reg">등록순 (기본)</option>
@@ -685,6 +702,31 @@
     </div>
 </div>
 
+<!-- 엑셀(CSV) 관리 모달 창 (기능 4) -->
+<div id="excelModal" class="modal-overlay">
+    <div class="modal-card">
+        <h3>📊 엑셀 (CSV) 내보내기 / 가져오기</h3>
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:14px;">현재 단어장을 CSV 파일로 다운로드하거나, CSV 파일을 업로드하여 단어를 일괄 추가할 수 있습니다.</p>
+        
+        <div class="form-group">
+            <label>1. 현재 단어장 백업 (내보내기)</label>
+            <button class="btn" style="background-color:var(--primary); font-size:0.9rem;" onclick="exportToCSV()">📥 CSV 파일 다운로드</button>
+        </div>
+
+        <hr style="border:0; border-top:1px solid var(--border-color); margin: 16px 0;">
+
+        <div class="form-group">
+            <label>2. 파일로 단어 추가 (가져오기)</label>
+            <input type="file" id="csvFileInput" accept=".csv" style="padding:8px; font-size:0.85rem; margin-bottom:8px;">
+            <button class="btn" style="background-color:var(--success); font-size:0.9rem;" onclick="importFromCSV()">📤 CSV 파일 업로드 및 병합</button>
+        </div>
+
+        <div class="modal-btns" style="margin-top:16px;">
+            <button class="btn" style="background-color:#94a3b8;" onclick="closeExcelModal()">닫기</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyD-TestKeyForDemoAppOnly123456789",
@@ -707,6 +749,7 @@
     let words = [];
     let histories = [];
     let isAscending = true;
+    let wrongWordsList = []; // 오답 노트 관리용 (기능 3)
 
     let summaryState = {
         add: { type: '새로운 단어 기여 및 보완', custom: '' },
@@ -1073,7 +1116,7 @@
         localStorage.setItem('current_vocab_folder', currentFolder);
         
         words = clonedWords;
-        histories = []; // 새 폴더이므로 초기화 후 저장
+        histories = [];
         saveWordsWithHistory(`과거 버전(${targetHist.time})에서 복제 생성`);
         
         closeHistoryModal();
@@ -1144,19 +1187,120 @@
         }
     }
 
+    // 엑셀(CSV) 관리 모달 제어 (기능 4)
+    function openExcelModal() {
+        document.getElementById('excelModal').style.display = 'flex';
+    }
+
+    function closeExcelModal() {
+        document.getElementById('excelModal').style.display = 'none';
+    }
+
+    function exportToCSV() {
+        if (words.length === 0) {
+            alert('내보낼 단어가 없습니다.');
+            return;
+        }
+        let csvContent = "\uFEFFEnglish,Meanings,Examples\n";
+        words.forEach(w => {
+            const eng = `"${w.eng.replace(/"/g, '""')}"`;
+            const meanings = `"${w.meanings.join('; ').replace(/"/g, '""')}"`;
+            const examples = `"${(w.examples || []).join('; ').replace(/"/g, '""')}"`;
+            csvContent += `${eng},${meanings},${examples}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentFolder}_words.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function importFromCSV() {
+        const fileInput = document.getElementById('csvFileInput');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert('업로드할 CSV 파일을 선택해주세요.');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n');
+            let addedCount = 0;
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                // CSV 파싱 (따옴표 고려)
+                const row = [];
+                let inQuotes = false;
+                let currentVal = '';
+                for (let char of line) {
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        row.push(currentVal.trim());
+                        currentVal = '';
+                    } else {
+                        currentVal += char;
+                    }
+                }
+                row.push(currentVal.trim());
+
+                if (row.length >= 2) {
+                    const eng = row[0].replace(/^"|"$/g, '').replace(/""/g, '"');
+                    const meaningsRaw = row[1].replace(/^"|"$/g, '').replace(/""/g, '"');
+                    const meanings = meaningsRaw.split(';').map(m => m.trim()).filter(m => m);
+                    
+                    let examples = [];
+                    if (row.length >= 3 && row[2]) {
+                        const exRaw = row[2].replace(/^"|"$/g, '').replace(/""/g, '"');
+                        examples = exRaw.split(';').map(ex => ex.trim()).filter(ex => ex);
+                    }
+
+                    if (eng && meanings.length > 0) {
+                        // 중복 확인 후 추가
+                        if (!words.some(w => w.eng.toLowerCase() === eng.toLowerCase())) {
+                            words.push({ eng, meanings, examples });
+                            addedCount++;
+                        }
+                    }
+                }
+            }
+
+            if (addedCount > 0) {
+                saveWordsWithHistory(`CSV 파일 업로드로 ${addedCount}개 단어 추가`);
+                renderWordList();
+                closeExcelModal();
+                alert(`성공적으로 ${addedCount개의} 단어가 추가되었습니다!`);
+            } else {
+                alert('추가할 새로운 단어가 없거나 파일 형식이 올바르지 않습니다.');
+            }
+        };
+        reader.readAsText(file);
+    }
+
     function toggleSortOrder() {
         isAscending = !isAscending;
         const btn = document.getElementById('sortOrderBtn');
-        btn.textContent = isAscending ? "⬆️ 오름차순" : "⬇️ 내름차순";
+        btn.textContent = isAscending ? "⬆️ 오름차순" : "⬇️ 내림차순";
         renderWordList();
     }
 
+    // 실시간 검색 및 필터링 기능 (기능 2)
     function renderWordList() {
         const container = document.getElementById('wordListContainer');
         const countSpan = document.getElementById('wordCount');
         const sortBy = document.getElementById('sortBy').value;
+        const searchKeyword = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase().trim() : '';
+        
         container.innerHTML = '';
-
         countSpan.textContent = words.length;
 
         if (words.length === 0) {
@@ -1164,7 +1308,12 @@
             return;
         }
 
-        let displayWords = [...words];
+        let displayWords = words.filter(itemObj => {
+            if (!searchKeyword) return true;
+            const matchEng = itemObj.eng.toLowerCase().includes(searchKeyword);
+            const matchMeanings = itemObj.meanings.some(m => m.toLowerCase().includes(searchKeyword));
+            return matchEng || matchMeanings;
+        });
 
         if (sortBy === 'alpha') {
             displayWords.sort((a, b) => {
@@ -1178,6 +1327,11 @@
             if (!isAscending) {
                 displayWords.reverse();
             }
+        }
+
+        if (displayWords.length === 0) {
+            container.innerHTML = '<div class="empty-state">검색 결과가 없습니다.</div>';
+            return;
         }
 
         displayWords.forEach((itemObj) => {
@@ -1229,16 +1383,24 @@
     let quizList = [];
     let currentQuizIndex = 0;
     let quizScore = 0;
+    let isWrongNoteMode = false; // 오답 노트 모드 여부 (기능 3)
 
-    function startQuiz() {
+    function startQuiz(fromWrongNote = false) {
         const quizArea = document.getElementById('quizArea');
+        isWrongNoteMode = fromWrongNote;
 
-        if (words.length < 5) {
-            quizArea.innerHTML = `<div class="empty-state">퀴즈를 풀려면 최소 5개 이상의 단어가 필요합니다!<br>(현재 단어 수: ${words.length}개)</div>`;
+        const targetPool = isWrongNoteMode ? wrongWordsList : words;
+
+        if (targetPool.length < 5) {
+            if (isWrongNoteMode) {
+                quizArea.innerHTML = `<div class="empty-state">오답 노트에 저장된 단어가 5개 미만입니다!<br>(현재 오답 수: ${targetPool.length개})<br><br><button class="btn" onclick="startQuiz(false)">전체 단어 퀴즈로 돌아가기</button></div>`;
+            } else {
+                quizArea.innerHTML = `<div class="empty-state">퀴즈를 풀려면 최소 5개 이상의 단어가 필요합니다!<br>(현재 단어 수: ${words.length}개)</div>`;
+            }
             return;
         }
 
-        const indices = [...Array(words.length).keys()];
+        const indices = [...Array(targetPool.length).keys()];
         quizList = indices.sort(() => 0.5 - Math.random()).slice(0, 5);
         currentQuizIndex = 0;
         quizScore = 0;
@@ -1247,23 +1409,31 @@
 
     function showQuestion() {
         const quizArea = document.getElementById('quizArea');
+        const targetPool = isWrongNoteMode ? wrongWordsList : words;
+
         if (currentQuizIndex >= quizList.length) {
+            let wrongNoteButtonHtml = '';
+            if (!isWrongNoteMode && wrongWordsList.length > 0) {
+                wrongNoteButtonHtml = `<button class="btn" style="background-color:var(--warning); margin-top:8px;" onclick="startQuiz(true)">📝 오답 노트만 모아서 다시 풀기 (${wrongWordsList.length}개)</button>`;
+            }
+
             quizArea.innerHTML = `
                 <div class="quiz-result">
                     🎉 퀴즈 완료!<br><br>
                     총 5문제 중 <span style="color:var(--primary);">${quizScore}</span>문제를 맞추셨습니다!
                     <br><br>
-                    <button class="btn" onclick="startQuiz()">다시 풀기</button>
+                    <button class="btn" onclick="startQuiz(${isWrongNoteMode})">다시 풀기</button>
+                    ${wrongNoteButtonHtml}
                 </div>
             `;
             return;
         }
 
         const correctIndex = quizList[currentQuizIndex];
-        const correctItem = words[correctIndex];
+        const correctItem = targetPool[correctIndex];
         const correctMea = correctItem.meanings[Math.floor(Math.random() * correctItem.meanings.length)];
 
-        let questionType = '단어 퀴즈';
+        let questionType = isWrongNoteMode ? '오답 노트 퀴즈' : '단어 퀴즈';
         let questionText = correctItem.eng;
 
         if (correctItem.examples && correctItem.examples.length > 0 && Math.random() > 0.4) {
@@ -1274,28 +1444,18 @@
 
         let allOtherMeanings = [];
         words.forEach((item, idx) => {
-            if (idx !== correctIndex) {
-                item.meanings.forEach(m => {
-                    if (m !== correctMea) allOtherMeanings.push(m);
-                });
-            }
+            item.meanings.forEach(m => {
+                if (m !== correctMea) allOtherMeanings.push(m);
+            });
         });
 
         let uniqueDistractors = [...new Set(allOtherMeanings)];
-        if (uniqueDistractors.length < 4) {
-            words.forEach(item => {
-                item.meanings.forEach(m => {
-                    if (m !== correctMea && !uniqueDistractors.includes(m)) uniqueDistractors.push(m);
-                });
-            });
-        }
-
         const shuffledDistractors = uniqueDistractors.sort(() => 0.5 - Math.random()).slice(0, 4);
         const choices = [correctMea, ...shuffledDistractors].sort(() => 0.5 - Math.random());
 
         quizArea.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 0.85rem; color: var(--text-secondary);">문제 ${currentQuizIndex + 1} / 5</span>
+                <span style="font-size: 0.85rem; color: var(--text-secondary);">문제 ${currentQuizIndex + 1} / 5 ${isWrongNoteMode ? '(오답노트)' : ''}</span>
                 <span class="quiz-badge">${questionType}</span>
             </div>
             <div class="quiz-card">
@@ -1315,11 +1475,19 @@
                 if (choiceText === correctMea) {
                     btn.classList.add('correct');
                     quizScore++;
+                    // 맞추면 오답 노트에서 제거 (오답노트 모드일 때)
+                    if (isWrongNoteMode) {
+                        wrongWordsList = wrongWordsList.filter(w => w.eng !== correctItem.eng);
+                    }
                 } else {
                     btn.classList.add('incorrect');
                     Array.from(choicesContainer.children).forEach(b => {
                         if (b.textContent === correctMea) b.classList.add('correct');
                     });
+                    // 틀리면 오답 노트에 추가 (중복 방지)
+                    if (!wrongWordsList.some(w => w.eng === correctItem.eng)) {
+                        wrongWordsList.push(correctItem);
+                    }
                 }
 
                 setTimeout(() => {
