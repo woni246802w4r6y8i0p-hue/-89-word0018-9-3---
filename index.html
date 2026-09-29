@@ -533,7 +533,6 @@
             line-height: 1.5;
         }
 
-        /* CSV 가이드 스타일 */
         .guide-box {
             background: #f8fafc;
             border: 1px solid var(--border-color);
@@ -564,6 +563,7 @@
         <button class="folder-btn" style="background-color:var(--warning); color:white; border-color:var(--warning);" onclick="openHistoryModal()">📜 역사</button>
         <button class="folder-btn" onclick="openCloneMergeModal()">📋 복제/합치기</button>
         <button class="folder-btn" style="background-color:var(--success); color:white; border-color:var(--success);" onclick="openExcelModal()">📊 엑셀관리</button>
+        <button class="folder-btn" id="adminToggleBtn" style="background-color:#64748b; color:white; border-color:#64748b;" onclick="handleAdminButton()">🔒 관리자</button>
         <span id="syncStatus" style="font-size: 0.7rem; color: var(--success); font-weight: 600; width: 100%; text-align: right;">☁️ 연동됨</span>
     </div>
 
@@ -693,7 +693,7 @@
 <div id="historyModal" class="modal-overlay">
     <div class="modal-card">
         <h3>📜 위키 편집 역사 (버전 관리)</h3>
-        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">원하는 과거 버전을 선택하여 현재 문서로 되돌리거나, 새 복사 폴더로 독립시킬 수 있습니다.</p>
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">원하는 과거 버전을 선택하여 현재 문서로 되돌리거나, 테러/악성 편집을 신고할 수 있습니다.</p>
         
         <div id="historyListContainer" style="max-height: 380px; overflow-y: auto;"></div>
 
@@ -727,12 +727,10 @@
         <h3>📊 엑셀 (CSV) 내보내기 / 가져오기</h3>
         <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:10px;">현재 단어장을 CSV 파일로 다운로드하거나, CSV 파일을 업로드하여 단어를 일괄 추가할 수 있습니다.</p>
         
-        <!-- CSV 작성법 가이드 토글 버튼 -->
         <button type="button" class="folder-btn" style="width:100%; margin-bottom:12px; background:#f1f5f9; color:var(--text-color); border-color:var(--border-color); padding:8px;" onclick="toggleCsvGuide()">
             ❓ 파일 작성 방법 보기 (가이드 열기/닫기)
         </button>
 
-        <!-- 작성법 가이드 내용 박스 -->
         <div id="csvGuideBox" class="guide-box">
             <b>📄 CSV 파일 작성 규칙:</b><br>
             1. 첫 줄(헤더)은 정확히 입력하세요:<br>
@@ -763,6 +761,30 @@
     </div>
 </div>
 
+<!-- 관리자 제재 센터 모달 창 -->
+<div id="adminModal" class="modal-overlay">
+    <div class="modal-card">
+        <h3>🛡️ 관리자 제재 센터</h3>
+        
+        <!-- 비밀번호 변경 구역 -->
+        <div style="background:#f1f5f9; padding:12px; border-radius:12px; margin-bottom:14px; border:1px solid var(--border-color);">
+            <label style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom:4px;">🔐 관리자 비밀번호 변경</label>
+            <div style="display:flex; gap:6px;">
+                <input type="password" id="newAdminPwInput" placeholder="새 비밀번호 입력" style="padding:8px; font-size:0.85rem;">
+                <button class="folder-btn" style="background-color:var(--primary); color:white; border-color:var(--primary); flex-shrink:0;" onclick="changeAdminPassword()">변경</button>
+            </div>
+        </div>
+
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">접수된 신고 내역을 확인하고 악성 기여자를 활동 정지 처리할 수 있습니다.</p>
+        
+        <div id="adminReportListContainer" style="max-height: 280px; overflow-y: auto;"></div>
+
+        <div class="modal-btns" style="margin-top:16px;">
+            <button class="btn" style="background-color:#94a3b8;" onclick="closeAdminModal()">닫기</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyD-TestKeyForDemoAppOnly123456789",
@@ -784,6 +806,10 @@
     document.getElementById('folderInput').value = currentFolder;
     let words = [];
     let histories = [];
+    let reports = [];
+    let bannedEditors = JSON.parse(localStorage.getItem('vocab_banned_editors') || '[]');
+    let adminPassword = localStorage.getItem('vocab_admin_password') || 'admin1234';
+    let isAdminLoggedIn = false;
     let isAscending = true;
     let wrongWordsList = [];
 
@@ -826,6 +852,45 @@
         localStorage.setItem('wiki_editor_name', editorName);
     }
 
+    function checkBanned() {
+        if (bannedEditors.includes(editorName)) {
+            alert('⚠️ 회원님은 악성 편집 누적으로 인해 관리자에 의해 활동이 정지(차단)되었습니다. 단어를 추가하거나 수정할 수 없습니다.');
+            return true;
+        }
+        return false;
+    }
+
+    function handleAdminButton() {
+        if (isAdminLoggedIn) {
+            openAdminModal();
+        } else {
+            const pw = prompt('관리자 비밀번호를 입력하세요:');
+            if (pw === adminPassword) {
+                isAdminLoggedIn = true;
+                const btn = document.getElementById('adminToggleBtn');
+                btn.textContent = "🛡️ 관리센터";
+                btn.style.backgroundColor = "var(--danger)";
+                btn.style.borderColor = "var(--danger)";
+                alert('관리자로 로그인되었습니다!');
+                openAdminModal();
+            } else if (pw !== null) {
+                alert('비밀번호가 틀렸습니다!');
+            }
+        }
+    }
+
+    function changeAdminPassword() {
+        const newPw = document.getElementById('newAdminPwInput').value.trim();
+        if (!newPw) {
+            alert('변경할 비밀번호를 입력해주세요!');
+            return;
+        }
+        adminPassword = newPw;
+        localStorage.setItem('vocab_admin_password', adminPassword);
+        document.getElementById('newAdminPwInput').value = '';
+        alert('관리자 비밀번호가 성공적으로 변경되었습니다!');
+    }
+
     function changeFolder() {
         const newFolder = document.getElementById('folderInput').value.trim();
         if (!newFolder) {
@@ -847,9 +912,11 @@
                     const data = doc.data();
                     words = data.words || [];
                     histories = data.histories || [];
+                    reports = data.reports || [];
                 } else {
                     words = [];
                     histories = [];
+                    reports = [];
                 }
                 statusSpan.textContent = "☁️ 연동됨 (" + currentFolder + ")";
                 updateActiveView();
@@ -864,8 +931,10 @@
     function loadFromLocalFallback() {
         const savedWords = localStorage.getItem('vocab_folder_' + currentFolder);
         const savedHistories = localStorage.getItem('vocab_history_' + currentFolder);
+        const savedReports = localStorage.getItem('vocab_reports_' + currentFolder);
         words = savedWords ? JSON.parse(savedWords) : [];
         histories = savedHistories ? JSON.parse(savedHistories) : [];
+        reports = savedReports ? JSON.parse(savedReports) : [];
         document.getElementById('syncStatus').textContent = "💾 로컬 (" + currentFolder + ")";
         updateActiveView();
     }
@@ -902,6 +971,7 @@
         const diffSummaryHtml = generateDiff(previousSnapshot, words);
 
         const newHistoryItem = {
+            id: 'hist_' + Date.now() + Math.random().toString(36).substr(2, 5),
             time: timestamp,
             editor: editorName,
             summary: summaryText || '내용 수정',
@@ -912,15 +982,21 @@
         histories.unshift(newHistoryItem);
         if (histories.length > 20) histories.pop();
 
+        syncToStorage();
+    }
+
+    function syncToStorage() {
         if (db) {
             db.collection("vocab_folders").doc(currentFolder).set({
                 words: words,
                 histories: histories,
+                reports: reports,
                 updatedAt: new Date()
             }).catch(() => {});
         }
         localStorage.setItem('vocab_folder_' + currentFolder, JSON.stringify(words));
         localStorage.setItem('vocab_history_' + currentFolder, JSON.stringify(histories));
+        localStorage.setItem('vocab_reports_' + currentFolder, JSON.stringify(reports));
     }
 
     function updateActiveView() {
@@ -968,6 +1044,8 @@
     }
 
     document.getElementById('addBtn').addEventListener('click', () => {
+        if (checkBanned()) return;
+
         const eng = document.getElementById('engInput').value.trim();
         const meaningInputs = document.querySelectorAll('#meaningInputsContainer .meaning-input');
         const exInputs = document.querySelectorAll('#exInputsContainer .ex-input');
@@ -1017,6 +1095,7 @@
     let editingOriginalIndex = null;
 
     function openEditModalByObject(engText) {
+        if (checkBanned()) return;
         const index = words.findIndex(w => w.eng === engText);
         if (index === -1) return;
         editingOriginalIndex = index;
@@ -1045,6 +1124,7 @@
     }
 
     function saveEditedWord() {
+        if (checkBanned()) return;
         const index = editingOriginalIndex;
         if (index === null || index === undefined) return;
 
@@ -1112,9 +1192,10 @@
                     <div class="snapshot-box">
                         ${snapshotWordsText}
                     </div>
-                    <div style="display: flex; gap: 6px; margin-top: 4px;">
-                        <button class="folder-btn" style="background-color:var(--primary); color:white;" onclick="restoreVersion(${hIndex})">↩️ 이 버전으로 되돌리기</button>
-                        <button class="folder-btn" style="background-color:var(--success); color:white; border-color:var(--success);" onclick="cloneVersionAsNewFolder(${hIndex})">📋 이 버전으로 새 복사폴더 만들기</button>
+                    <div style="display: flex; gap: 6px; margin-top: 4px; flex-wrap:wrap;">
+                        <button class="folder-btn" style="background-color:var(--primary); color:white;" onclick="restoreVersion(${hIndex})">↩️ 되돌리기</button>
+                        <button class="folder-btn" style="background-color:var(--success); color:white; border-color:var(--success);" onclick="cloneVersionAsNewFolder(${hIndex})">📋 복사폴더</button>
+                        <button class="folder-btn" style="background-color:var(--danger); color:white; border-color:var(--danger);" onclick="reportEdit('${hist.id}', '${escapeHtml(hist.editor)}', '${escapeHtml(hist.summary)}')">🚨 신고하기</button>
                     </div>
                 `;
                 container.appendChild(div);
@@ -1126,6 +1207,80 @@
 
     function closeHistoryModal() {
         document.getElementById('historyModal').style.display = 'none';
+    }
+
+    function reportEdit(histId, editor, summary) {
+        const reason = prompt(`[${editor}]님의 편집(사유: ${summary})에 대한 신고 사유를 입력하세요:`, `테러 및 악성 편집`);
+        if (!reason) return;
+
+        const newReport = {
+            id: 'rep_' + Date.now(),
+            histId: histId,
+            targetEditor: editor,
+            editSummary: summary,
+            reason: reason,
+            reportedBy: editorName,
+            time: new Date().toLocaleString()
+        };
+
+        reports.push(newReport);
+        syncToStorage();
+        alert('신고가 관리자에게 접수되었습니다. 협조해주셔서 감사합니다.');
+    }
+
+    function openAdminModal() {
+        const container = document.getElementById('adminReportListContainer');
+        container.innerHTML = '';
+
+        if (!reports || reports.length === 0) {
+            container.innerHTML = '<div class="empty-state">접수된 신고 내역이 없습니다.</div>';
+        } else {
+            reports.forEach((rep, rIndex) => {
+                const isBanned = bannedEditors.includes(rep.targetEditor);
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <div class="history-meta">
+                        <span>🚨 신고자: ${escapeHtml(rep.reportedBy)}</span>
+                        <span>🕒 ${rep.time}</span>
+                    </div>
+                    <div style="font-size:0.9rem; font-weight:700; color:var(--danger);">피신고자: ${escapeHtml(rep.targetEditor)}</div>
+                    <div style="font-size:0.85rem;">편집 사유: ${escapeHtml(rep.editSummary)}</div>
+                    <div style="font-size:0.85rem; font-weight:600; background:#fff; padding:6px; border-radius:6px; border:1px solid var(--border-color);">신고 사유: ${escapeHtml(rep.reason)}</div>
+                    <div style="display: flex; gap: 6px; margin-top: 4px;">
+                        <button class="folder-btn" style="background-color:${isBanned ? '#94a3b8' : 'var(--danger)'}; color:white;" onclick="toggleBanEditor('${escapeHtml(rep.targetEditor)}')">
+                            ${isBanned ? '✅ 차단 해제' : '🚫 활동 정지(차단)'}
+                        </button>
+                        <button class="folder-btn" style="background-color:#94a3b8; color:white;" onclick="dismissReport(${rIndex})">🗑️ 신고 삭제</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        document.getElementById('adminModal').style.display = 'flex';
+    }
+
+    function closeAdminModal() {
+        document.getElementById('adminModal').style.display = 'none';
+    }
+
+    function toggleBanEditor(editor) {
+        if (bannedEditors.includes(editor)) {
+            bannedEditors = bannedEditors.filter(e => e !== editor);
+            alert(`[${editor}]님의 활동 정지가 해제되었습니다.`);
+        } else {
+            bannedEditors.push(editor);
+            alert(`[${editor}]님이 활동 정지(차단)되었습니다.`);
+        }
+        localStorage.setItem('vocab_banned_editors', JSON.stringify(bannedEditors));
+        openAdminModal();
+    }
+
+    function dismissReport(rIndex) {
+        reports.splice(rIndex, 1);
+        syncToStorage();
+        openAdminModal();
     }
 
     function restoreVersion(hIndex) {
@@ -1153,6 +1308,7 @@
         
         words = clonedWords;
         histories = [];
+        reports = [];
         saveWordsWithHistory(`과거 버전(${targetHist.time})에서 복제 생성`);
         
         closeHistoryModal();
@@ -1187,6 +1343,7 @@
                     localStorage.setItem('current_vocab_folder', currentFolder);
                     words = clonedWords;
                     histories = [];
+                    reports = [];
                     saveWordsWithHistory('문서 복제 생성');
                     closeCloneMergeModal();
                     renderWordList();
@@ -1231,14 +1388,9 @@
         document.getElementById('excelModal').style.display = 'none';
     }
 
-    // CSV 가이드 토글 함수
     function toggleCsvGuide() {
         const box = document.getElementById('csvGuideBox');
-        if (box.style.display === 'block') {
-            box.style.display = 'none';
-        } else {
-            box.style.display = 'block';
-        }
+        box.style.display = box.style.display === 'block' ? 'none' : 'block';
     }
 
     function exportToCSV() {
@@ -1265,6 +1417,7 @@
     }
 
     function importFromCSV() {
+        if (checkBanned()) return;
         const fileInput = document.getElementById('csvFileInput');
         if (!fileInput.files || fileInput.files.length === 0) {
             alert('업로드할 CSV 파일을 선택해주세요.');
@@ -1407,6 +1560,7 @@
             delBtn.className = 'delete-btn';
             delBtn.textContent = '삭제';
             delBtn.addEventListener('click', () => {
+                if (checkBanned()) return;
                 const summary = prompt(`삭제 이유(편집 요약)를 입력해주세요:`, `단어 삭제`);
                 if (summary !== null) {
                     words.splice(originalIndex, 1);
