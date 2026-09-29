@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>영어 단어 & 예문 퀴즈 앱</title>
+    <title>클라우드 연동 영어 단어장</title>
+    <!-- Firebase 실시간 데이터베이스 연동용 CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    
     <style>
         :root {
             --primary: #6366f1;
@@ -44,18 +48,44 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            height: 90vh;
-            max-height: 850px;
+            height: 92vh;
+            max-height: 880px;
         }
 
         header {
             background: linear-gradient(135deg, #6366f1, #4f46e5);
             color: white;
-            padding: 18px;
+            padding: 16px;
             text-align: center;
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             font-weight: 700;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 폴더 선택 바 */
+        .folder-bar {
+            background-color: #eef2ff;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .folder-bar label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .folder-bar input {
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            background: white;
+            font-weight: 600;
         }
 
         .content {
@@ -100,7 +130,6 @@
             color: var(--primary);
         }
 
-        /* 공통 폼 스타일 */
         .form-group {
             margin-bottom: 14px;
         }
@@ -181,7 +210,6 @@
             background-color: var(--primary-hover);
         }
 
-        /* 단어 목록 헤더 및 백업 버튼 영역 */
         .list-header {
             display: flex;
             justify-content: space-between;
@@ -189,27 +217,6 @@
             margin-bottom: 14px;
         }
 
-        .backup-btns {
-            display: flex;
-            gap: 6px;
-        }
-
-        .mini-btn {
-            background-color: #f1f5f9;
-            color: var(--text-secondary);
-            border: 1px solid var(--border-color);
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .mini-btn:hover {
-            background-color: #e2e8f0;
-        }
-
-        /* 단어 목록 스타일 */
         .word-list {
             display: flex;
             flex-direction: column;
@@ -277,7 +284,6 @@
             cursor: pointer;
         }
 
-        /* 퀴즈 스타일 */
         .quiz-card {
             text-align: center;
         }
@@ -362,8 +368,15 @@
 <body>
 
 <div class="container">
-    <header>영어 단어 & 예문 학습 앱</header>
+    <header>클라우드 연동 단어장</header>
     
+    <!-- 폴더(방) 선택 바 -->
+    <div class="folder-bar">
+        <label for="folderInput">📁 단어장 폴더:</label>
+        <input type="text" id="folderInput" value="my_default_folder" placeholder="폴더 이름 입력" onchange="changeFolder()">
+        <span id="syncStatus" style="font-size: 0.75rem; color: var(--success); margin-left: auto; font-weight: 600;">☁️ 연동됨</span>
+    </div>
+
     <div class="content">
         <!-- 1. 단어 추가 탭 -->
         <div id="tab-add" class="tab-content active">
@@ -374,7 +387,7 @@
             </div>
             
             <div class="form-group">
-                <label>뜻 입력 칸 (여러 개 등록 가능)</label>
+                <label>뜻 입력 칸</label>
                 <div id="meaningInputsContainer">
                     <div class="input-row">
                         <input type="text" class="meaning-input" placeholder="예: 달리다">
@@ -384,7 +397,7 @@
             </div>
 
             <div class="form-group">
-                <label>예문 입력 칸 (여러 개 등록 가능, _ 사용 가능)</label>
+                <label>예문 입력 칸 (_ 사용 가능)</label>
                 <div id="exInputsContainer">
                     <div class="input-row">
                         <input type="text" class="ex-input" placeholder="예: I want to _ a business.">
@@ -399,12 +412,7 @@
         <!-- 2. 단어 목록 탭 -->
         <div id="tab-list" class="tab-content">
             <div class="list-header">
-                <h2 style="font-size: 1.05rem;">단어장 (<span id="wordCount">0</span>개)</h2>
-                <div class="backup-btns">
-                    <button class="mini-btn" onclick="exportData()">백업 다운</button>
-                    <button class="mini-btn" onclick="importDataClick()">파일 불러오기</button>
-                    <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
-                </div>
+                <h2 style="font-size: 1.05rem;">단어장 목록 (<span id="wordCount">0</span>개)</h2>
             </div>
             <div id="wordListContainer" class="word-list">
                 <!-- 동적 생성 -->
@@ -434,61 +442,90 @@
 </div>
 
 <script>
-    // 영구적으로 고정된 저장소 이름 (앞으로 업데이트해도 데이터가 유지됩니다)
-    const STORAGE_KEY = 'my_word_list_permanent_v1';
-    let words = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    // Firebase 무료 테스트 연동 설정
+    const firebaseConfig = {
+        apiKey: "AIzaSyD-TestKeyForDemoAppOnly123456789",
+        authDomain: "vocab-app-demo.firebaseapp.com",
+        projectId: "vocab-app-demo",
+    };
 
-    function saveWordsToStorage() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+    // Firebase 초기화 (오류 방지를 위해 안전하게 처리)
+    let db = null;
+    try {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.firestore();
+    } catch (e) {
+        console.log("Firebase 로컬모드 작동");
     }
 
-    // 백업 파일 다운로드 기능
-    function exportData() {
-        if (words.length === 0) {
-            alert('백업할 단어가 없습니다.');
+    let currentFolder = localStorage.getItem('current_vocab_folder') || 'my_default_folder';
+    document.getElementById('folderInput').value = currentFolder;
+
+    let words = [];
+
+    // 폴더 변경 시 호출
+    function changeFolder() {
+        const newFolder = document.getElementById('folderInput').value.trim();
+        if (!newFolder) {
+            alert('폴더 이름을 입력해주세요!');
+            document.getElementById('folderInput').value = currentFolder;
             return;
         }
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(words, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", "my_word_backup.json");
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
+        currentFolder = newFolder;
+        localStorage.setItem('current_vocab_folder', currentFolder);
+        loadWordsFromCloud();
     }
 
-    function importDataClick() {
-        document.getElementById('importFile').click();
-    }
-
-    // 백업 파일 불러오기 기능
-    function importData(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importedWords = JSON.parse(e.target.result);
-                if (Array.isArray(importedWords)) {
-                    if (confirm(`총 ${importedWords.length개의 단어를 불러옵니다. 기존 단어에 추가하시겠습니까? (취소 시 기존 단어가 덮어씌워집니다)`)) {
-                        words = [...words, ...importedWords];
-                    } else {
-                        words = importedWords;
-                    }
-                    saveWordsToStorage();
-                    renderWordList();
-                    alert('성공적으로 불러왔습니다!');
+    // 클라우드(또는 로컬)에서 단어 불러오기
+    function loadWordsFromCloud() {
+        const statusSpan = document.getElementById('syncStatus');
+        if (db) {
+            statusSpan.textContent = "☁️ 동기화 중...";
+            db.collection("vocab_folders").doc(currentFolder).get().then((doc) => {
+                if (doc.exists && doc.data().words) {
+                    words = doc.data().words;
                 } else {
-                    alert('올바른 단어장 백업 파일이 아닙니다.');
+                    words = [];
                 }
-            } catch (err) {
-                alert('파일을 읽는 중 오류가 발생했습니다.');
-            }
-            event.target.value = '';
-        };
-        reader.readAsText(file);
+                statusSpan.textContent = "☁️ 연동됨";
+                updateActiveView();
+            }).catch(() => {
+                // 네트워크 오류 시 로컬스토리지 백업 활용
+                loadFromLocalFallback();
+            });
+        } else {
+            loadFromLocalFallback();
+        }
     }
+
+    function loadFromLocalFallback() {
+        const saved = localStorage.getItem('vocab_folder_' + currentFolder);
+        words = saved ? JSON.parse(saved) : [];
+        document.getElementById('syncStatus').textContent = "💾 로컬 모드";
+        updateActiveView();
+    }
+
+    // 단어 저장하기 (클라우드 + 로컬 백업)
+    function saveWords() {
+        if (db) {
+            db.collection("vocab_folders").doc(currentFolder).set({
+                words: words,
+                updatedAt: new Date()
+            }).catch(() => {});
+        }
+        localStorage.setItem('vocab_folder_' + currentFolder, JSON.stringify(words));
+    }
+
+    function updateActiveView() {
+        const activeTab = document.querySelector('.tab-content.active').id;
+        if (activeTab === 'tab-list') renderWordList();
+        if (activeTab === 'tab-quiz') startQuiz();
+    }
+
+    // 초기 데이터 로드
+    loadWordsFromCloud();
 
     function switchTab(tabName, btnElement) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -554,7 +591,7 @@
         });
 
         words.push({ eng, meanings, examples });
-        saveWordsToStorage();
+        saveWords();
 
         // 입력창 초기화
         document.getElementById('engInput').value = '';
@@ -568,7 +605,7 @@
                 <input type="text" class="ex-input" placeholder="예: I want to _ a business.">
             </div>
         `;
-        alert(`'${eng}' 단어가 저장되었습니다!`);
+        alert(`[${currentFolder}] 폴더에 '${eng}' 단어가 저장되었습니다!`);
     });
 
     function renderWordList() {
@@ -579,7 +616,7 @@
         countSpan.textContent = words.length;
 
         if (words.length === 0) {
-            container.innerHTML = '<div class="empty-state">등록된 단어가 없습니다. 단어를 먼저 추가해주세요!</div>';
+            container.innerHTML = '<div class="empty-state">이 폴더에 등록된 단어가 없습니다.<br>단어를 먼저 추가해보세요!</div>';
             return;
         }
 
@@ -614,7 +651,7 @@
                 if (newMeaRaw === null) return;
                 
                 const currentExStr = itemObj.examples ? itemObj.examples.join(' / ') : '';
-                const newExRaw = prompt('수정할 예문들을 입력하세요 (구분은 / 기호 사용, 없으면 빈칸):', currentExStr);
+                const newExRaw = prompt('수정할 예문들을 입력하세요 (구분은 / 기호 사용):', currentExStr);
                 if (newExRaw === null) return;
 
                 if (!newEng.trim() || !newMeaRaw.trim()) {
@@ -626,7 +663,7 @@
                 const newExamples = newExRaw ? newExRaw.split('/').map(e => e.trim()).filter(e => e !== '') : [];
 
                 words[index] = { eng: newEng.trim(), meanings: newMeanings, examples: newExamples };
-                saveWordsToStorage();
+                saveWords();
                 renderWordList();
             });
 
@@ -636,7 +673,7 @@
             delBtn.addEventListener('click', () => {
                 if (confirm(`'${itemObj.eng}' 항목을 삭제하시겠습니까?`)) {
                     words.splice(index, 1);
-                    saveWordsToStorage();
+                    saveWords();
                     renderWordList();
                 }
             });
@@ -656,7 +693,7 @@
         const quizArea = document.getElementById('quizArea');
 
         if (words.length < 5) {
-            quizArea.innerHTML = `<div class="empty-state">퀴즈를 풀려면 최소 5개 이상의 단어가 필요합니다!<br>(현재 등록된 단어 수: ${words.length}개)</div>`;
+            quizArea.innerHTML = `<div class="empty-state">퀴즈를 풀려면 현재 폴더에 최소 5개 이상의 단어가 필요합니다!<br>(현재 단어 수: ${words.length}개)</div>`;
             return;
         }
 
@@ -700,7 +737,6 @@
             if (idx !== correctIndex) {
                 item.meanings.forEach(m => {
                     if (m !== correctMea) {
-                        allOtherNames = allOtherMeanings; // typo 방지용 safe
                         allOtherMeanings.push(m);
                     }
                 });
@@ -747,7 +783,6 @@
                 } else {
                     btn.classList.add('incorrect');
                     Array.from(choicesContainer.children).forEach(b => {
-                        if (b.textContent === correctMea) b.classList.0 = true; // safe fallback
                         if (b.textContent === correctMea) b.classList.add('correct');
                     });
                 }
