@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>영어 단어 퀴즈 앱</title>
+    <title>영어 단어 & 예문 퀴즈 앱</title>
     <style>
         :root {
             --primary: #6366f1;
@@ -44,16 +44,16 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            height: 85vh;
-            max-height: 800px;
+            height: 90vh;
+            max-height: 850px;
         }
 
         header {
             background: linear-gradient(135deg, #6366f1, #4f46e5);
             color: white;
-            padding: 20px;
+            padding: 18px;
             text-align: center;
-            font-size: 1.25rem;
+            font-size: 1.2rem;
             font-weight: 700;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
@@ -85,7 +85,7 @@
             background: none;
             border: none;
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 600;
             display: flex;
             flex-direction: column;
@@ -102,28 +102,70 @@
 
         /* 공통 폼 스타일 */
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
 
         label {
             display: block;
             margin-bottom: 6px;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         input {
             width: 100%;
-            padding: 12px 16px;
+            padding: 12px 14px;
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             outline: none;
             transition: border-color 0.2s;
         }
 
         input:focus {
             border-color: var(--primary);
+        }
+
+        .meaning-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .sub-btn {
+            background-color: #f1f5f9;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sub-btn:hover {
+            background-color: #e2e8f0;
+            color: var(--danger);
+        }
+
+        .add-meaning-btn {
+            background-color: #f8fafc;
+            color: var(--primary);
+            border: 1px dashed var(--primary);
+            width: 100%;
+            padding: 10px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .add-meaning-btn:hover {
+            background-color: #eef2ff;
         }
 
         button.btn {
@@ -137,6 +179,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.2s;
+            margin-top: 6px;
         }
 
         button.btn:hover {
@@ -153,7 +196,7 @@
         .word-item {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             padding: 14px 16px;
             background-color: #f8fafc;
             border: 1px solid var(--border-color);
@@ -168,13 +211,22 @@
 
         .word-info .mea {
             font-size: 0.9rem;
-            color: var(--text-secondary);
+            color: var(--primary);
             margin-top: 2px;
+            font-weight: 600;
+        }
+
+        .word-info .ex {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-style: italic;
         }
 
         .action-buttons {
             display: flex;
             gap: 6px;
+            flex-shrink: 0;
         }
 
         .edit-btn {
@@ -184,13 +236,8 @@
             padding: 8px 10px;
             border-radius: 8px;
             font-weight: 600;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .edit-btn:hover {
-            background-color: #fde68a;
         }
 
         .delete-btn {
@@ -200,13 +247,8 @@
             padding: 8px 10px;
             border-radius: 8px;
             font-weight: 600;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .delete-btn:hover {
-            background-color: #fecaca;
         }
 
         /* 퀴즈 스타일 */
@@ -214,14 +256,27 @@
             text-align: center;
         }
 
-        .quiz-question {
-            font-size: 1.5rem;
-            font-weight: 800;
-            margin: 24px 0;
-            color: var(--primary);
+        .quiz-badge {
+            display: inline-block;
             background: #eef2ff;
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .quiz-question {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin: 16px 0 24px 0;
+            color: var(--text-color);
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
             padding: 20px;
             border-radius: 16px;
+            line-height: 1.5;
         }
 
         .choices {
@@ -236,7 +291,7 @@
             background-color: white;
             border: 2px solid var(--border-color);
             border-radius: 12px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
             color: var(--text-color);
             cursor: pointer;
@@ -264,7 +319,7 @@
 
         .quiz-result {
             text-align: center;
-            font-size: 1.25rem;
+            font-size: 1.2rem;
             font-weight: 700;
             margin-top: 40px;
         }
@@ -274,32 +329,44 @@
             color: var(--text-secondary);
             margin-top: 40px;
             font-size: 0.95rem;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <header>영어 단어 퀴즈 앱</header>
+    <header>영어 단어 & 예문 학습 앱</header>
     
     <div class="content">
         <!-- 1. 단어 추가 탭 -->
         <div id="tab-add" class="tab-content active">
-            <h2 style="margin-bottom: 16px; font-size: 1.1rem;">새 단어 등록</h2>
+            <h2 style="margin-bottom: 14px; font-size: 1.05rem;">새 단어 / 예문 등록</h2>
             <div class="form-group">
                 <label for="engInput">영어 단어</label>
-                <input type="text" id="engInput" placeholder="예: Apple">
+                <input type="text" id="engInput" placeholder="예: run">
             </div>
+            
             <div class="form-group">
-                <label for="meaInput">뜻</label>
-                <input type="text" id="meaInput" placeholder="예: 사과">
+                <label>뜻 입력 칸 (여러 개 등록 가능)</label>
+                <div id="meaningInputsContainer">
+                    <div class="meaning-input-row">
+                        <input type="text" class="meaning-input" placeholder="예: 달리다">
+                    </div>
+                </div>
+                <button type="button" class="add-meaning-btn" id="addMeaningFieldBtn">+ 뜻 칸 추가하기</button>
+            </div>
+
+            <div class="form-group">
+                <label for="exInput">예문 (선택사항, 빈칸은 ____ 로 표시)</label>
+                <input type="text" id="exInput" placeholder="예: I want to ____ a business.">
             </div>
             <button class="btn" id="addBtn">단어 추가하기</button>
         </div>
 
         <!-- 2. 단어 목록 탭 -->
         <div id="tab-list" class="tab-content">
-            <h2 style="margin-bottom: 16px; font-size: 1.1rem;">단어장 관리 (<span id="wordCount">0</span>개)</h2>
+            <h2 style="margin-bottom: 14px; font-size: 1.05rem;">단어장 관리 (<span id="wordCount">0</span>개)</h2>
             <div id="wordListContainer" class="word-list">
                 <!-- 동적 생성 -->
             </div>
@@ -328,10 +395,10 @@
 </div>
 
 <script>
-    let words = JSON.parse(localStorage.getItem('my_word_list') || '[]');
+    let words = JSON.parse(localStorage.getItem('my_word_list_multi_inputs') || '[]');
 
     function saveWordsToStorage() {
-        localStorage.setItem('my_word_list', JSON.stringify(words));
+        localStorage.setItem('my_word_list_multi_inputs', JSON.stringify(words));
     }
 
     function switchTab(tabName, btnElement) {
@@ -348,23 +415,55 @@
         }
     }
 
+    // 뜻 입력 칸 추가 버튼 이벤트
+    document.getElementById('addMeaningFieldBtn').addEventListener('click', () => {
+        const container = document.getElementById('meaningInputsContainer');
+        const row = document.createElement('div');
+        row.className = 'meaning-input-row';
+        row.innerHTML = `
+            <input type="text" class="meaning-input" placeholder="추가 뜻 입력">
+            <button type="button" class="sub-btn" onclick="this.parentElement.remove()">삭제</button>
+        `;
+        container.appendChild(row);
+    });
+
+    // 단어 추가 로직
     document.getElementById('addBtn').addEventListener('click', () => {
         const eng = document.getElementById('engInput').value.trim();
-        const mea = document.getElementById('meaInput').value.trim();
+        const meaningInputs = document.querySelectorAll('.meaning-input');
+        const ex = document.getElementById('exInput').value.trim();
 
-        if (!eng || !mea) {
-            alert('영어 단어와 뜻을 모두 입력해주세요!');
+        if (!eng) {
+            alert('영어 단어를 입력해주세요!');
             return;
         }
 
-        words.push({ eng, mea });
+        const meanings = [];
+        meaningInputs.forEach(input => {
+            const val = input.value.trim();
+            if (val) meanings.push(val);
+        });
+
+        if (meanings.length === 0) {
+            alert('최소 하나 이상의 뜻을 입력해주세요!');
+            return;
+        }
+
+        words.push({ eng, meanings, ex });
         saveWordsToStorage();
 
+        // 입력창 초기화
         document.getElementById('engInput').value = '';
-        document.getElementById('meaInput').value = '';
+        document.getElementById('exInput').value = '';
+        document.getElementById('meaningInputsContainer').innerHTML = `
+            <div class="meaning-input-row">
+                <input type="text" class="meaning-input" placeholder="예: 달리다">
+            </div>
+        `;
         alert(`'${eng}' 단어가 저장되었습니다!`);
     });
 
+    // 단어 목록 렌더링
     function renderWordList() {
         const container = document.getElementById('wordListContainer');
         const countSpan = document.getElementById('wordCount');
@@ -381,10 +480,13 @@
             const item = document.createElement('div');
             item.className = 'word-item';
 
+            const meaDisplay = itemObj.meanings.join(', ');
+
             item.innerHTML = `
                 <div class="word-info">
                     <div class="eng">${escapeHtml(itemObj.eng)}</div>
-                    <div class="mea">${escapeHtml(itemObj.mea)}</div>
+                    <div class="mea">뜻: ${escapeHtml(meaDisplay)}</div>
+                    ${itemObj.ex ? `<div class="ex">예문: ${escapeHtml(itemObj.ex)}</div>` : ''}
                 </div>
             `;
 
@@ -397,15 +499,19 @@
             editBtn.addEventListener('click', () => {
                 const newEng = prompt('수정할 영어 단어를 입력하세요:', itemObj.eng);
                 if (newEng === null) return;
-                const newMea = prompt('수정할 뜻을 입력하세요:', itemObj.mea);
-                if (newMea === null) return;
+                const newMeaRaw = prompt('수정할 뜻을 입력하세요 (콤마로 구분):', itemObj.meanings.join(', '));
+                if (newMeaRaw === null) return;
+                const newEx = prompt('수정할 예문을 입력하세요 (없으면 빈칸):', itemObj.ex || '');
+                if (newEx === null) return;
 
-                if (!newEng.trim() || !newMea.trim()) {
-                    alert('단어와 뜻을 모두 입력해야 합니다.');
+                if (!newEng.trim() || !newMeaRaw.trim()) {
+                    alert('단어와 뜻은 반드시 입력해야 합니다.');
                     return;
                 }
 
-                words[index] = { eng: newEng.trim(), mea: newMea.trim() };
+                const newMeanings = newMeaRaw.split(',').map(m => m.trim()).filter(m => m !== '');
+
+                words[index] = { eng: newEng.trim(), meanings: newMeanings, ex: newEx.trim() };
                 saveWordsToStorage();
                 renderWordList();
             });
@@ -414,7 +520,7 @@
             delBtn.className = 'delete-btn';
             delBtn.textContent = '삭제';
             delBtn.addEventListener('click', () => {
-                if (confirm(`'${itemObj.eng}' 단어를 삭제하시겠습니까?`)) {
+                if (confirm(`'${itemObj.eng}' 항목을 삭제하시겠습니까?`)) {
                     words.splice(index, 1);
                     saveWordsToStorage();
                     renderWordList();
@@ -463,54 +569,90 @@
 
         const correctIndex = quizList[currentQuizIndex];
         const correctItem = words[correctIndex];
-        const correctEng = correctItem.eng;
-        const correctMea = correctItem.mea;
 
-        const otherItems = words.filter((_, idx) => idx !== correctIndex);
-        const shuffledOthers = [...otherItems].sort(() => 0.5 - Math.random()).slice(0, 4);
-        const choices = [correctMea, ...shuffledOthers.map(item => item.mea)].sort(() => 0.5 - Math.random());
+        // 1. 해당 단어의 여러 뜻 중 무작위로 하나를 정답으로 선택
+        const correctMea = correctItem.meanings[Math.floor(Math.random() * correctItem.meanings.length)];
 
-        quizArea.innerHTML = `
-            <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 8px;">문제 ${currentQuizIndex + 1} / 5</div>
-            <div class="quiz-card">
-                <div class="quiz-question">${escapeHtml(correctEng)}</div>
-                <div class="choices" id="choicesContainer"></div>
-            </div>
-        `;
+        // 문제 유형 결정 (예문이 있으면 예문 모드, 없으면 단어 모드)
+        let questionType = '단어 퀴즈';
+        let questionText = correctItem.eng;
 
-        const choicesContainer = document.getElementById('choicesContainer');
-        choices.forEach(choiceText => {
-            const btn = document.createElement('button');
-            btn.className = 'choice-btn';
-            btn.textContent = choiceText;
-            btn.addEventListener('click', () => {
-                Array.from(choicesContainer.children).forEach(b => b.disabled = true);
+        if (correctItem.ex && correctItem.ex.trim() !== '') {
+            questionType = '예문 빈칸 퀴즈';
+            questionText = correctItem.ex;
+        }
 
-                if (choiceText === correctMea) {
-                    btn.classList.add('correct');
-                    quizScore++;
-                } else {
-                    btn.classList.add('incorrect');
-                    Array.from(choicesContainer.children).forEach(b => {
-                        if (b.textContent === correctMea) b.classList.add('correct');
-                    });
-                }
-
-                setTimeout(() => {
-                    currentQuizIndex++;
-                    showQuestion();
-                }, 1000);
-            });
-            choicesContainer.appendChild(btn);
+        // 2. 오답 선지 추출: 다른 단어들의 뜻 중에서 정답 문구와 겹치지 않는 것들만 수집
+        let allOtherMeanings = [];
+        words.forEach((item, idx) => {
+            if (idx !== correctIndex) {
+                item.meanings.forEach(m => {
+                    if (m !== correctMea) {
+                        allOtherMeanings.push(m);
+                    }
+                });
+            }
         });
-    }
 
-    function escapeHtml(str) {
-        return str.replace(/[&<>'"]/g, 
-            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-        );
-    }
-</script>
+        let uniqueDistractors = [...new Set(allOtherMeanings)];
+        
+        if (uniqueDistractors.length < 4) {
+            words.forEach(item => {
+                item.meanings.forEach(m => {
+                    if (m !== correctMea && !uniqueDistractors.includes(m)) {
+                        uniqueDistractors.push(m);
+                    }
+                });
+            });
+        }
 
-</body>
+        const shuffledDistractors = uniqueDistractors.sort(() => 0.5 - Math.random()).slice(0, 4);
+        const choices = [correctMea, ...shuffledDistractors].sort(() => 0.5 - Math.random());
+
+ 퀴즈Area.innerHTML = '
+ <div style="디스플레이: 유연성; 정당화 내용: 간격 사이; 정렬 items: 중앙; 여백 하단: 8 px;">
+ <span style="font 크기: 0.85rem; 색상: var(--텍스트 보조);">문제 ${currentQuiz지수 + 1} / 5</span>
+ <span class="quiz-badge">${질문.유형}//span>
+ </div>
+ <div class="quiz 카드">
+ <div class="quiz-질문">${이스케이프Html(질문 텍스트)}</div>
+ <div class="choices" ID="choicesContainer"></div>
+ </div>
+ `
+
+ constoicesContainer = document.getElementById('choicesContainer');
+ 선택.각각(선택 사항)텍스트 => {
+ const btn = document.createElement('버튼');
+ btn.className = '선택-btn';
+ btn.textContent = 선택텍스트;
+ btn.addEventListener('클릭', () => {
+ Array.from(Container.children 선택).각각에 대해 (b => b.disabled = true);
+
+ 만약 (선택 사항)텍스트 === correctMea) {
+ btn.classList.add('올바른');
+ 퀴즈점수++;
+ } 또 다른 {
+ btn.classList.add('잘못됨');
+ Array.from(Container.children 선택).각각에 대해 (b => {
+ 만약 (b.textContent === correctMea) b.classList.add('올바른');
+ });
+ }
+
+ setTimeout((() => {
+ 현재 퀴즈인덱스++;
+ 질문 표시();
+ }, 1000);
+ });
+ 선택 항목Container.appendChild(btn);
+ });
+ }
+
+ 기능. 이스케이프Html(str) {
+ str.replace(/[&<>')/g를 반환합니다, 
+ 태그 => ({'&' &', '<: '<', '>', '>', '':', '', ''): }[태그] || 태그)
+ );
+ }
+</대본>
+
+</몸>
 </html>
