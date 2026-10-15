@@ -646,6 +646,14 @@
         <button class="folder-btn" style="background-color:#0ea5e9; color:white; border-color:#0ea5e9;" onclick="openExcelModal()">📊 엑셀관리</button>
         <button class="folder-btn" id="adminToggleBtn" style="background-color:#64748b; color:white; border-color:#64748b;" onclick="handleAdminButton()">🔒 관리자</button>
         <span id="syncStatus" style="font-size: 0.7rem; color: var(--success); font-weight: 600; width: 100%; text-align: right;">☁️ 연동됨</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;padding:8px;background:#eef2ff;border-radius:10px;">
+          <span id="authStatus" style="font-size:.82rem;flex:1;min-width:180px;">로그인 상태 확인 중...</span>
+          <button class="folder-btn" id="signUpBtn" onclick="signUpWithEmail()">회원가입</button>
+          <button class="folder-btn" id="loginBtn" onclick="loginWithEmail()">로그인</button>
+          <button class="folder-btn" id="resendVerificationBtn" onclick="resendVerificationEmail()" style="display:none;">인증 이메일 다시 보내기</button>
+          <button class="folder-btn" id="refreshVerificationBtn" onclick="refreshEmailVerification()" style="display:none;">인증 완료 확인</button>
+          <button class="folder-btn" id="logoutBtn" onclick="logoutAccount()" style="display:none;">로그아웃</button>
+        </div>
     </div>
 
     <div class="content">
@@ -946,6 +954,17 @@
                 <button class="folder-btn" style="background-color:var(--primary); color:white; border-color:var(--primary); flex-shrink:0;" onclick="changeAdminPassword()">변경</button>
             </div>
         </div>
+        <div style="padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:12px;">
+          <b>⛔ 회원 활동 정지</b>
+          <p style="font-size:.8rem;margin:5px 0 8px;">대상 회원의 Firebase Authentication UID를 입력하세요. 이메일이 아니라 UID를 사용합니다.</p>
+          <input id="moderationUidInput" type="text" placeholder="정지할 회원의 UID" style="width:100%;margin-bottom:7px;padding:9px;">
+          <select id="moderationDuration" style="width:100%;padding:9px;margin-bottom:7px;">
+            <option value="1">1일 정지</option><option value="7">7일 정지</option><option value="30">30일 정지</option><option value="90">90일 정지</option><option value="permanent">영구 정지</option><option value="0">정지 해제</option>
+          </select>
+          <input id="moderationReasonInput" type="text" placeholder="정지 사유 (필수)" style="width:100%;margin-bottom:7px;padding:9px;">
+          <button class="folder-btn" style="background:var(--danger);color:white;border-color:var(--danger);width:100%;" onclick="applyModeration()">정지 적용 / 정지 해제</button>
+          <p id="moderationStatus" style="font-size:.78rem;margin-top:7px;"></p>
+        </div>
         <div id="adminReportListContainer" style="max-height: 280px; overflow-y: auto;"></div>
         <div class="modal-btns" style="margin-top:16px;">
             <button class="btn" style="background-color:#94a3b8;" onclick="closeAdminModal()">닫기</button>
@@ -966,8 +985,18 @@
         }
         db = firebase.firestore();
         auth = firebase.auth();
+        let moderationUnsubscribe = null;
         auth.onAuthStateChanged((user) => {
             currentUser = user;
+            currentModeration = null;
+            if (moderationUnsubscribe) { moderationUnsubscribe(); moderationUnsubscribe = null; }
+            if (user && db) {
+                // 관리자 해제가 대상 화면에 즉시 반영되도록 제재 상태를 실시간 구독합니다.
+                moderationUnsubscribe = db.collection('moderation').doc(user.uid).onSnapshot((snap) => {
+                    currentModeration = snap.exists ? snap.data() : null;
+                    updateAuthUI();
+                }, (e) => { console.warn('회원 제재 상태 확인 실패', e); updateAuthUI(); });
+            }
             updateAuthUI();
         });
     } catch (e) {
@@ -980,9 +1009,10 @@
     let histories = [];
     let reports = [];
     let wrongWordsList = [];
-    let bannedEditors = JSON.parse(localStorage.getItem('vocab_banned_editors') || '[]');
-    let adminPassword = localStorage.getItem('vocab_admin_password') || 'admin1234';
+    // Firebase Authentication UID가 보안 규칙의 ADMIN_UID와 일치해야 관리자 권한이 생깁니다.
+    const ADMIN_UID = 'REPLACE_WITH_ADMIN_UID';
     let isAdminLoggedIn = false;
+    let currentModeration = null;
     let isAscending = true;
 
     let summaryState = {
@@ -1028,18 +1058,46 @@
         const status = document.getElementById('authStatus');
         const loginBtn = document.getElementById('loginBtn');
         const signUpBtn = document.getElementById('signUpBtn');
+        const resendBtn = document.getElementById('resendVerificationBtn');
+        const refreshBtn = document.getElementById('refreshVerificationBtn');
         const logoutBtn = document.getElementById('logoutBtn');
+        if (!status || !loginBtn || !signUpBtn || !logoutBtn) return;
+
         if (currentUser) {
-            status.textContent = '로그인됨: ' + (currentUser.email || '회원') + ' · 편집 가능';
-            loginBtn.style.display = 'none';
-            signUpBtn.style.display = 'none';
+            if (currentUser.emailVerified !== true) {
+                status.textContent = '이메일 인증 대기 중: ' + (currentUser.email || '회원') + ' · 인증 후 편집 가능';
+                loginBtn.style.display = 'none';
+                signUpBtn.style.display = 'none';
+                if (resendBtn) resendBtn.style.display = 'inline-block';
+                if (refreshBtn) refreshBtn.style.display = 'inline-block';
+            } else {
+                let label = '로그인됨: ' + (currentUser.email || '회원');
+                if (isCurrentlySuspended(currentModeration)) label += ' · 활동 정지 중';
+                else label += ' · 편집 가능';
+                status.textContent = label;
+                loginBtn.style.display = 'none';
+                signUpBtn.style.display = 'none';
+                if (resendBtn) resendBtn.style.display = 'none';
+                if (refreshBtn) refreshBtn.style.display = 'none';
+            }
             logoutBtn.style.display = 'inline-block';
         } else {
-            status.textContent = '로그인하지 않음 · 열람 가능, 편집은 로그인 필요';
+            status.textContent = '로그인하지 않음 · 열람 가능, 편집은 이메일 인증 후 로그인 필요';
             loginBtn.style.display = 'inline-block';
             signUpBtn.style.display = 'inline-block';
+            if (resendBtn) resendBtn.style.display = 'none';
+            if (refreshBtn) refreshBtn.style.display = 'none';
             logoutBtn.style.display = 'none';
         }
+    }
+
+    function isCurrentlySuspended(record) {
+        if (!record) return false;
+        if (record.permanent === true) return true;
+        const until = record.suspendedUntil;
+        if (!until) return false;
+        const millis = typeof until.toMillis === 'function' ? until.toMillis() : new Date(until).getTime();
+        return Number.isFinite(millis) && millis > Date.now();
     }
 
     async function signUpWithEmail() {
@@ -1049,8 +1107,14 @@
         const password = prompt('비밀번호를 입력하세요 (6자 이상):');
         if (!password) return;
         try {
-            await auth.createUserWithEmailAndPassword(email.trim(), password);
-            alert('회원가입이 완료되었습니다. 이제 공동 단어장을 편집할 수 있습니다.');
+            const credential = await auth.createUserWithEmailAndPassword(email.trim(), password);
+            try {
+                await credential.user.sendEmailVerification();
+                alert('회원가입이 완료되었습니다. 입력한 이메일의 받은편지함에서 인증 링크를 눌러주세요. 인증 전에는 단어를 수정할 수 없습니다. 스팸함도 확인해 주세요.');
+            } catch (verificationError) {
+                alert('계정은 만들어졌지만 인증 이메일을 보내지 못했습니다. 아래의 [인증 이메일 다시 보내기] 버튼을 눌러 다시 시도해 주세요.\n오류: ' + authErrorMessage(verificationError));
+            }
+            updateAuthUI();
         } catch (error) { alert('회원가입 실패: ' + authErrorMessage(error)); }
     }
 
@@ -1061,9 +1125,59 @@
         const password = prompt('비밀번호를 입력하세요:');
         if (!password) return;
         try {
-            await auth.signInWithEmailAndPassword(email.trim(), password);
-            alert('로그인되었습니다. 이제 공동 단어장을 편집할 수 있습니다.');
+            const credential = await auth.signInWithEmailAndPassword(email.trim(), password);
+            await credential.user.reload();
+            currentUser = auth.currentUser;
+            if (currentUser && currentUser.emailVerified) {
+                await currentUser.getIdToken(true);
+                alert('로그인되었습니다. 이메일 인증이 확인되었습니다.');
+            } else {
+                alert('로그인은 되었지만 이메일 인증이 아직 완료되지 않았습니다. 이메일의 인증 링크를 누른 뒤 [인증 완료 확인]을 눌러주세요. 인증 전에는 단어를 수정할 수 없습니다.');
+            }
+            updateAuthUI();
         } catch (error) { alert('로그인 실패: ' + authErrorMessage(error)); }
+    }
+
+    async function resendVerificationEmail() {
+        if (!auth || !auth.currentUser) {
+            alert('먼저 회원가입 또는 로그인해 주세요.');
+            return;
+        }
+        try {
+            await auth.currentUser.reload();
+            currentUser = auth.currentUser;
+            if (currentUser.emailVerified) {
+                await currentUser.getIdToken(true);
+                updateAuthUI();
+                alert('이미 이메일 인증이 완료되었습니다.');
+                return;
+            }
+            await currentUser.sendEmailVerification();
+            alert('인증 이메일을 다시 보냈습니다. 받은편지함과 스팸함을 확인해 주세요.');
+        } catch (error) {
+            alert('인증 이메일 전송 실패: ' + authErrorMessage(error));
+        }
+    }
+
+    async function refreshEmailVerification() {
+        if (!auth || !auth.currentUser) {
+            alert('먼저 회원가입 또는 로그인해 주세요.');
+            return;
+        }
+        try {
+            await auth.currentUser.reload();
+            currentUser = auth.currentUser;
+            if (currentUser.emailVerified) {
+                await currentUser.getIdToken(true);
+                updateAuthUI();
+                alert('이메일 인증이 확인되었습니다. 이제 단어를 수정할 수 있습니다.');
+            } else {
+                updateAuthUI();
+                alert('아직 이메일 인증이 확인되지 않았습니다. 받은편지함의 인증 링크를 먼저 눌러주세요.');
+            }
+        } catch (error) {
+            alert('인증 상태 확인 실패: ' + authErrorMessage(error));
+        }
     }
 
     async function logoutAccount() {
@@ -1090,42 +1204,65 @@
             alert('공동 단어장을 수정하려면 먼저 회원가입 또는 로그인을 해주세요. 단어 열람은 로그인 없이 가능합니다.');
             return true;
         }
-        if (bannedEditors.includes(editorName)) {
-            alert('⚠️ 회원님은 악성 편집 누수로 인해 관리자에 의해 활동이 정지(차단)되었습니다.');
+        if (currentUser.emailVerified !== true) {
+            alert('이메일 인증이 필요합니다. 받은편지함의 인증 링크를 누른 뒤 [인증 완료 확인]을 눌러주세요.');
+            return true;
+        }
+        if (isCurrentlySuspended(currentModeration)) {
+            const until = currentModeration.permanent ? '영구 정지' : '정지 기간 종료 전';
+            alert('⚠️ 관리자에 의해 활동이 정지된 계정입니다. (' + until + ')\n사유: ' + (currentModeration.reason || '미기재'));
             return true;
         }
         return false;
     }
 
     function handleAdminButton() {
-        if (isAdminLoggedIn) {
-            openAdminModal();
-        } else {
-            const pw = prompt('관리자 비밀번호를 입력하세요:');
-            if (pw === adminPassword) {
-                isAdminLoggedIn = true;
-                const btn = document.getElementById('adminToggleBtn');
-                btn.textContent = "🛡️ 관리센터";
-                btn.style.backgroundColor = "var(--danger)";
-                btn.style.borderColor = "var(--danger)";
-                alert('관리자로 로그인되었습니다!');
-                openAdminModal();
-            } else if (pw !== null) {
-                alert('비밀번호가 틀렸습니다!');
-            }
+        if (!currentUser) { alert('관리자 기능을 사용하려면 먼저 관리자 계정으로 로그인하세요.'); return; }
+        if (currentUser.uid !== ADMIN_UID || ADMIN_UID === 'REPLACE_WITH_ADMIN_UID') {
+            alert('관리자 권한이 없습니다. 관리자 UID 설정을 확인하세요.'); return;
         }
+        isAdminLoggedIn = true;
+        openAdminModal();
     }
 
     function changeAdminPassword() {
-        const newPw = document.getElementById('newAdminPwInput').value.trim();
-        if (!newPw) {
-            alert('변경할 비밀번호를 입력해주세요!');
-            return;
+        alert('보안을 위해 웹페이지 안에서 관리자 비밀번호를 변경하는 기능은 제거했습니다. Firebase Authentication 계정의 비밀번호를 사용하세요.');
+    }
+
+    async function applyModeration() {
+        if (!currentUser || currentUser.uid !== ADMIN_UID || ADMIN_UID === 'REPLACE_WITH_ADMIN_UID') {
+            alert('관리자 권한이 없습니다.'); return;
         }
-        adminPassword = newPw;
-        localStorage.setItem('vocab_admin_password', adminPassword);
-        document.getElementById('newAdminPwInput').value = '';
-        alert('관리자 비밀번호가 성공적으로 변경되었습니다!');
+        if (!db) { alert('Firebase 연결이 없습니다.'); return; }
+        const uid = document.getElementById('moderationUidInput').value.trim();
+        const duration = document.getElementById('moderationDuration').value;
+        const reason = document.getElementById('moderationReasonInput').value.trim();
+        const status = document.getElementById('moderationStatus');
+        if (!uid) { alert('정지할 회원의 UID를 입력하세요.'); return; }
+        if (uid === ADMIN_UID) { alert('관리자 본인은 이 기능으로 정지할 수 없습니다.'); return; }
+        if (duration !== '0' && !reason) { alert('정지 사유를 입력하세요.'); return; }
+        try {
+            if (duration === '0') {
+                // 정지 문서를 삭제하면 보안 규칙에서 즉시 편집 권한이 복구됩니다.
+                await db.collection('moderation').doc(uid).delete();
+                status.textContent = '정지가 해제되었습니다. 해당 회원의 편집 권한이 즉시 복구됩니다.';
+            } else {
+                const permanent = duration === 'permanent';
+                const suspendedUntil = permanent ? null : firebase.firestore.Timestamp.fromDate(new Date(Date.now() + Number(duration) * 86400000));
+                await db.collection('moderation').doc(uid).set({
+                    permanent, suspendedUntil, reason,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedBy: currentUser.uid
+                });
+                status.textContent = permanent ? '영구 정지를 적용했습니다.' : duration + '일 정지를 적용했습니다.';
+            }
+            document.getElementById('moderationUidInput').value = '';
+            document.getElementById('moderationReasonInput').value = '';
+        } catch (error) {
+            console.error(error);
+            status.textContent = '처리 실패: Firebase 보안 규칙을 확인하세요.';
+            alert('제재 적용에 실패했습니다. 관리자 UID와 Firestore 보안 규칙을 확인하세요.');
+        }
     }
 
     function changeFolder() {
@@ -1797,7 +1934,6 @@
                     <div style="font-size:0.85rem;">신고자: ${escapeHtml(rep.reporter)} | 사유: <b>${escapeHtml(rep.reason)}</b></div>
                     <div style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtml(rep.detail || '상세 내용 없음')}</div>
                     <div style="display:flex; gap:6px; margin-top:4px;">
-                        <button class="folder-btn" style="background-color:var(--danger); color:white;" onclick="banEditor('${rep.reporter}')">작성자 차단</button>
                         <button class="folder-btn" style="background-color:#94a3b8; color:white;" onclick="deleteReport(${rIndex})">신고 내역 삭제</button>
                     </div>
                 `;
@@ -1810,14 +1946,7 @@
     function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
 
     function banEditor(name) {
-        if (confirm(`'${name}' 기여자를 활동 정지(차단)하시겠습니까?`)) {
-            if (!bannedEditors.includes(name)) {
-                bannedEditors.push(name);
-                localStorage.setItem('vocab_banned_editors', JSON.stringify(bannedEditors));
-                alert('해당 기여자가 차단되었습니다.');
-                openAdminModal();
-            }
-        }
+        alert('이름 기반 차단은 안전하지 않아 제거했습니다. 관리자 제재 센터에서 Firebase Authentication UID를 입력해 정지하세요.');
     }
 
     function deleteReport(rIndex) {
