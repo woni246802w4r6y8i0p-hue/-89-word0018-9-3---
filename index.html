@@ -4,12 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>클라우드 위키 단어장</title>
-    <!-- 버전 관리: MAJOR.MINOR.PATCH (큰 개편.기능 추가.오류 수정) -->
-    <script>
-      const SITE_VERSION = "1.2.0";
-      const SITE_VERSION_DATE = "2026-10-22";
-      document.title = `클라우드 위키 단어장 · v${SITE_VERSION}`;
-    </script>
     <!-- 파이어베이스 SDK 불러오기 -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -1091,8 +1085,8 @@ button[onclick="cloneFolderData()"] { background: #566A4B !important; color: #FF
 button[onclick="mergeFolderData()"] { background: #A65332 !important; color: #FFFFFF !important; border-color: #A65332 !important; }
 button[onclick^="restoreVersion"] { background: #B17B36 !important; color: #FFFFFF !important; border-color: #B17B36 !important; }
 button[onclick^="deleteReport"] { background: #B94B43 !important; color: #FFFFFF !important; border-color: #B94B43 !important; }
-button[onclick="exportToCSV()"] { background: #566A4B !important; color: #FFFFFF !important; border-color: #566A4B !important; }
-button[onclick="importFromCSV()"] { background: #A65332 !important; color: #FFFFFF !important; border-color: #A65332 !important; }
+button[onclick="exportToExcel()"] { background: #566A4B !important; color: #FFFFFF !important; border-color: #566A4B !important; }
+button[onclick="closeExcelModal();openExcelImportModal()"] { background: #A65332 !important; color: #FFFFFF !important; border-color: #A65332 !important; }
 button[onclick="startWrongQuiz()"] { background: #B17B36 !important; color: #FFFFFF !important; border-color: #B17B36 !important; }
 input, select, textarea { background-color: #FFFEFB !important; color: #34382F !important; border-color: #D8D2C6 !important; }
 input:focus, select:focus, textarea:focus { border-color: #748463 !important; box-shadow: 0 0 0 3px rgba(116,132,99,.14) !important; }
@@ -1312,38 +1306,17 @@ nav {
   background: rgba(247, 244, 233, .25) !important;
 }
 </style>
-<style id="site-version-badge-style">
-/* 사이트 버전 표시 */
-.container > header .site-version-badge {
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
-  margin-left: 10px;
-  padding: 4px 8px;
-  border: 1px solid rgba(247, 244, 233, .35);
-  border-radius: 999px;
-  background: rgba(247, 244, 233, .12);
-  color: #F7F4E9;
-  font-size: .68rem;
-  font-weight: 700;
-  letter-spacing: .02em;
-  vertical-align: middle;
-}
-@media (max-width: 560px) {
-  .container > header .site-version-badge { margin-left: 6px; padding: 3px 6px; font-size: .62rem; }
-}
-</style>
 <style id="restore-folder-toolbar-original-color">
 /* Restore the document-action toolbar to its original beige color. */
 .container .folder-bar { background: #EDE9DE !important; background-color: #EDE9DE !important; }
 </style>
 </head>
 <body>
+<div id="site-version-badge" title="사이트 버전 v1.3.0 · 2026-10-22" style="position:fixed;left:12px;bottom:12px;z-index:9998;padding:5px 9px;border:1px solid #d5d0c2;border-radius:999px;background:#f7f4eb;color:#53674e;font:600 11px/1.2 system-ui,sans-serif;box-shadow:0 2px 8px #00000012;">v1.3.0 · 2026-10-22</div>
 
 <div class="container">
     <header>
         클라우드 위키 단어장
-        <span class="site-version-badge" id="siteVersionBadge" title="사이트 버전"></span>
         <button class="help-icon-btn" onclick="openHelpModal()">📖 도움말</button>
     </header>
     
@@ -1529,8 +1502,8 @@ nav {
         </ul>
       </div>
 
-      <label for="excelImportFile" style="display:block;font-weight:700;margin-bottom:8px;">엑셀 파일 선택 (.xlsx / .xls / .csv)</label>
-      <input id="excelImportFile" type="file" accept=".xlsx,.xls,.csv" onchange="handleExcelImportFile(event)" style="width:100%;padding:10px;background:#fffdf8;border:1px solid #d6d1c4;border-radius:8px;">
+      <label for="excelImportFile" style="display:block;font-weight:700;margin-bottom:8px;">엑셀 파일 선택 (.xlsx)</label>
+      <input id="excelImportFile" type="file" accept=".xlsx" onchange="handleExcelImportFile(event)" style="width:100%;padding:10px;background:#fffdf8;border:1px solid #d6d1c4;border-radius:8px;">
       <p style="font-size:.8rem;color:#68766b;margin:8px 0 0;line-height:1.6;"><strong>작성 안내:</strong> 첫 번째 행은 제목이므로 단어 데이터로 읽지 않습니다. 제목은 <strong>단어, 뜻, 예문, 예문해석, 정답</strong> 순서로 적어 주세요. 단어는 첫 번째 열에 입력해야 합니다. 뜻과 예문을 여러 개 적을 때는 <strong>/</strong>로 구분하세요. 예문에서 문제로 낼 단어는 <strong>_</strong>로 표시하고, 정답 열에 빈칸의 답을 예문과 같은 순서로 <strong>/</strong>로 구분해 적으세요. 첫 번째 시트인 ‘단어 입력’만 가져옵니다.</p>
     </div>
     <div id="excelImportStatus" role="status" style="margin:10px 0;font-size:.9rem;color:#53674e;"></div>
@@ -1607,8 +1580,8 @@ nav {
                 <p>등록된 예문 기반의 5지선다 퀴즈를 풀 수 있으며, 틀린 문제는 <b>오답 노트</b>에 자동 저장되어 집중 복습이 가능합니다.</p>
             </div>
             <div class="manual-item" data-keyword="엑셀 파일 csv 다운로드 업로드 백업">
-                <h4>📊 엑셀 (CSV) 관리</h4>
-                <p><b>[📊 엑셀관리]</b> 버튼을 통해 현재 단어장을 CSV 파일로 백업하거나 대량 업로드할 수 있습니다.</p>
+                <h4>📊 엑셀 관리</h4>
+                <p><b>[📊 엑셀관리]</b> 버튼을 통해 현재 단어장을 엑셀(.xlsx) 파일로 단어장을 백업하거나 대량 업로드할 수 있습니다.</p>
             </div>
             <div class="manual-item" data-keyword="역사 버전 되돌리기 히스토리">
                 <h4>📜 편집 역사 및 버전 되돌리기</h4>
@@ -1687,46 +1660,31 @@ nav {
     </div>
 </div>
 
-<!-- 엑셀 관리 모달 창 -->
+<!-- 엑셀 관리 모달 창: 가져오기와 내보내기 모두 XLSX -->
 <div id="excelModal" class="modal-overlay">
-    <div class="modal-card" style="max-width:640px;max-height:90vh;overflow:auto;">
-        <h3>📊 엑셀 관리</h3>
-        <p style="margin:-4px 0 14px;color:var(--text-muted,#68766b);font-size:.88rem;line-height:1.55;">엑셀 양식과 작성 규칙을 확인하고, 같은 형식의 파일을 미리보기로 검토한 뒤 단어장에 추가할 수 있어요.</p>
-
-        <section style="padding:14px;margin:0 0 14px;border:1px solid #c7d2bf;border-radius:12px;background:#f7f8f1;color:#304b38;">
-            <h4 style="margin:0 0 8px;font-size:1rem;">📥 1. 엑셀 양식 다운로드</h4>
-            <p style="margin:0 0 10px;font-size:.85rem;line-height:1.6;">아래 양식에는 입력 시트와 작성 안내 시트가 포함되어 있어요. 첫 번째 시트에 단어를 입력한 뒤 이 사이트에서 가져오세요.</p>
-            <button type="button" class="btn" style="background:#52664d;color:#fff;width:100%;" onclick="downloadExcelImportTemplate()">📥 엑셀 양식(.xlsx) 다운로드</button>
-            <button type="button" class="btn" style="background:#e2e8d8;color:#344a36;border:1px solid #b9c7b2;width:100%;margin-top:8px;" onclick="openExcelImportModal()">📤 작성한 엑셀 파일 가져오기</button>
-        </section>
-
-        <section style="padding:14px;margin:0 0 16px;border:1px solid #d9d5c8;border-radius:12px;background:#fffdf8;color:#344239;">
-            <h4 style="margin:0 0 8px;font-size:1rem;">📋 2. 엑셀 작성 규칙</h4>
-            <ol style="margin:0;padding-left:22px;font-size:.86rem;line-height:1.75;">
-                <li><b>열 순서:</b> 단어 → 뜻 → 예문 → 예문해석 → 정답. 제목은 이 순서대로 작성하세요.</li>
-                <li><b>첫 번째 행:</b> 열 제목입니다. 실제 단어 데이터는 두 번째 행부터 입력하세요.</li>
-                <li><b>단어:</b> 첫 번째 열에 영어 단어 또는 표현을 입력하세요. 한 행에 한 단어를 권장합니다.</li>
-                <li><b>빈칸 문제:</b> 예문에서 문제로 낼 단어/표현을 밑줄 문자 <code>_</code> 하나로 바꾸고, 그 답을 정답 열에 입력하세요. 예: <code>I _ to school.</code> / 정답: <code>go</code></li>
-                <li><b>여러 뜻·예문:</b> 한 셀에 여러 항목이 있으면 <code>/</code>로 구분하세요.</li>
-                <li><b>순서 맞추기:</b> 예문·예문해석·정답이 여러 개라면 같은 순서와 개수로 <code>/</code>를 사용하세요.</li>
-                <li><b>시트:</b> 가져오기는 첫 번째 시트인 <b>단어 입력</b>만 읽습니다. 안내 시트는 참고용입니다.</li>
-                <li><b>파일 형식:</b> 가능하면 <code>.xlsx</code>로 저장하세요. 파일을 가져온 뒤 미리보기에서 내용을 확인하고 등록하세요.</li>
-            </ol>
-        </section>
-
-        <h4 style="margin:0 0 8px;">📄 3. 파일 백업 / 단어 추가</h4>
-        <div class="form-group">
-            <label>현재 단어장 백업 (내보내기)</label>
-            <button class="btn" style="background-color:var(--primary); font-size:0.9rem;" onclick="exportToCSV()">📥 단어장 백업 파일 다운로드(.csv)</button>
+    <div class="modal-card">
+        <h3>📊 엑셀 단어장 관리</h3>
+        <div class="guide-box" style="display:block;margin-bottom:14px;">
+            <b>📄 엑셀 작성 규칙</b>
+            <ul style="margin:8px 0 0;padding-left:20px;line-height:1.7;">
+              <li>파일 형식은 <strong>.xlsx</strong>로 통일합니다.</li>
+              <li>열 제목은 <strong>단어, 뜻, 예문, 예문해석, 정답</strong> 순서로 작성합니다.</li>
+              <li>첫 행은 제목이며, 단어 데이터는 두 번째 행부터 입력합니다.</li>
+              <li>뜻·예문·해석·정답이 여러 개면 같은 순서로 <strong>/</strong>로 구분합니다.</li>
+              <li>예문 빈칸은 <strong>_</strong>로 표시하고 정답 열에 답을 적습니다.</li>
+            </ul>
+            <button type="button" class="folder-btn" style="margin-top:10px;" onclick="downloadExcelImportTemplate()">📄 엑셀 작성 양식 다운로드 (.xlsx)</button>
         </div>
-        <hr style="border:0; border-top:1px solid var(--border-color); margin: 14px 0;">
         <div class="form-group">
-            <label>파일로 단어 추가 (엑셀 양식 기준)</label>
-            <p style="font-size:.82rem;line-height:1.55;color:var(--text-muted,#68766b);margin:0 0 8px;">위에서 안내한 열 제목 <b>단어 · 뜻 · 예문 · 예문해석 · 정답</b>을 사용하는 .xlsx 파일을 선택하세요. 파일을 읽은 뒤 미리보기에서 확인하고 등록합니다.</p>
-            <input type="file" id="csvFileInput" accept=".xlsx,.xls,.csv" style="padding:8px; font-size:0.85rem; margin-bottom:8px;">
-            <button class="btn" style="background-color:var(--primary); font-size:0.9rem;" onclick="importFromCSV()">📤 파일 읽기 및 미리보기</button>
+            <label>1. 현재 단어장 백업 (내보내기)</label>
+            <button class="btn" style="background-color:var(--primary);font-size:0.9rem;" onclick="exportToExcel()">📥 엑셀 백업 다운로드 (.xlsx)</button>
         </div>
-
+        <hr style="border:0;border-top:1px solid var(--border-color);margin:14px 0;">
+        <div class="form-group">
+            <label>2. 파일로 단어 추가 (가져오기)</label>
+            <button class="btn" style="background-color:var(--primary);font-size:0.9rem;" onclick="closeExcelModal();openExcelImportModal()">📤 엑셀 파일 선택 및 단어 추가 (.xlsx)</button>
+            <p style="font-size:.82rem;color:#68766b;margin-top:8px;">가져오기 전 미리보기에서 중복 단어와 등록할 항목을 확인할 수 있습니다.</p>
+        </div>
         <div class="modal-btns" style="margin-top:14px;">
             <button class="btn" style="background-color:#94a3b8;" onclick="closeExcelModal()">닫기</button>
         </div>
@@ -2746,7 +2704,7 @@ nav {
             }
         });
 
-        words[index] = { eng: newEng, meanings: newMeanings, examples: newExamples, translations: newTranslations, answers: newAnswers, relatedWords: (words[index].relatedWords || []) };
+        words[index] = { eng: newEng, meanings: newMeanings, examples: newExamples, translations: newTranslations, answers: newAnswers };
         saveWordsWithHistory(summary);
         closeEditModal();
         renderWordList();
@@ -2991,50 +2949,36 @@ nav {
 
     function openExcelModal() { document.getElementById('excelModal').style.display = 'flex'; }
     function closeExcelModal() { document.getElementById('excelModal').style.display = 'none'; }
-    function exportToCSV() {
-        if (words.length === 0) { alert('내보낼 단어가 없습니다.'); return; }
-        let csvContent = "\uFEFFEnglish,Meanings,Examples,Translations,Answers\n";
-        words.forEach(w => {
-            const eng = `"${w.eng.replace(/"/g, '""')}"`;
-            const meanings = `"${w.meanings.join('; ').replace(/"/g, '""')}"`;
-            const examples = `"${(w.examples || []).join('; ').replace(/"/g, '""')}"`;
-            const translations = `"${(w.translations || []).join('; ').replace(/"/g, '""')}"`;
-            const answers = `"${(w.answers || []).join('; ').replace(/"/g, '""')}"`;
-            csvContent += `${eng},${meanings},${examples},${translations},${answers}\n`;
-        });
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentFolder}_words.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+    function toggleCsvGuide() {
+        const box = document.getElementById('csvGuideBox');
+        box.style.display = box.style.display === 'block' ? 'none' : 'block';
     }
 
-    async function importFromCSV() {
+    function exportToExcel() {
+        if (!words || words.length === 0) { alert('내보낼 단어가 없습니다.'); return; }
+        if (!window.XLSX) { alert('엑셀 파일 생성 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.'); return; }
+        const rows = [['단어', '뜻', '예문', '예문해석', '정답']];
+        words.forEach(w => rows.push([
+            String(w.eng || ''),
+            (Array.isArray(w.meanings) ? w.meanings : []).join(' / '),
+            (Array.isArray(w.examples) ? w.examples : []).join(' / '),
+            (Array.isArray(w.translations) ? w.translations : []).join(' / '),
+            (Array.isArray(w.answers) ? w.answers : []).join(' / ')
+        ]));
+        const sheet = XLSX.utils.aoa_to_sheet(rows);
+        sheet['!cols'] = [{wch:24},{wch:32},{wch:54},{wch:54},{wch:24}];
+        sheet['!autofilter'] = { ref: `A1:E${rows.length}` };
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, sheet, '단어 입력');
+        const safeName = String(currentFolder || '영어단어위키').replace(/[\\/:*?"<>|]/g, '_');
+        XLSX.writeFile(workbook, `${safeName}_단어장_백업.xlsx`);
+    }
+
+    function importFromCSV() {
+        // Legacy onclick compatibility: import now uses the same XLSX preview workflow as the template.
         if (checkBanned()) return;
-        const sourceInput = document.getElementById('csvFileInput');
-        const file = sourceInput && sourceInput.files && sourceInput.files[0];
-        if (!file) { alert('가져올 .xlsx 파일을 선택해 주세요.'); return; }
-        const ext = (file.name.split('.').pop() || '').toLowerCase();
-        if (!['xlsx', 'xls', 'csv'].includes(ext)) {
-            alert('지원하는 파일은 .xlsx, .xls, .csv입니다. 가능하면 제공된 엑셀 양식(.xlsx)을 사용해 주세요.');
-            return;
-        }
-        // Use the same preview, validation, answer mapping and Firebase-save flow
-        // as the dedicated Excel importer. Do not bypass validation with legacy CSV parsing.
+        closeExcelModal();
         openExcelImportModal();
-        const targetInput = document.getElementById('excelImportFile');
-        try {
-            const transfer = new DataTransfer();
-            transfer.items.add(file);
-            targetInput.files = transfer.files;
-            await handleExcelImportFile({ target: targetInput });
-        } catch (error) {
-            console.error('Word file import handoff failed:', error);
-            document.getElementById('excelImportStatus').textContent = '파일을 열지 못했습니다. 엑셀 관리 메뉴의 [엑셀 양식 다운로드]로 받은 양식인지 확인해 주세요.';
-        }
     }
 
     function openReportModal(engText) {
@@ -3148,30 +3092,13 @@ nav {
                 }).join('<br>') + `</div>`;
             }
 
-            const related = Array.isArray(itemObj.relatedWords) ? itemObj.relatedWords : [];
-            const relatedHtml = `<div class="related-word-section" style="margin-top:10px;padding:9px 11px;border-radius:10px;background:#f1f3ec;border:1px solid #dce2d4;"><div style="font-weight:700;font-size:.88rem;margin-bottom:5px;">🔗 관련 단어</div><div class="related-word-links"></div><button type="button" class="related-add-btn" style="margin-top:6px;border:1px solid #9eae95;border-radius:8px;background:#fff;padding:5px 9px;cursor:pointer;">＋ 관련 단어 등록</button></div>`;
             item.innerHTML = `
                 <div class="word-info">
                     <div class="eng">${escapeHtml(itemObj.eng)}</div>
                     <div class="mea">뜻: ${escapeHtml(itemObj.meanings.join(', '))}</div>
                     ${exHtml}
-                    ${relatedHtml}
                 </div>
             `;
-            const relBox = item.querySelector('.related-word-links');
-            if (!related.length) relBox.innerHTML = '<span style="font-size:.82rem;color:#687568;">아직 등록된 관련 단어가 없습니다.</span>';
-            related.forEach(rel => {
-                const relName = typeof rel === 'string' ? rel : rel.word;
-                const relType = typeof rel === 'string' ? '관련어' : (rel.type || '관련어');
-                if (!relName) return;
-                const exists = words.some(w => w.eng.toLowerCase() === relName.toLowerCase());
-                const link = document.createElement('button');
-                link.type = 'button'; link.textContent = `${relName} · ${relType}${exists ? '' : ' (미등록)'}`;
-                link.style.cssText = 'margin:3px 5px 3px 0;padding:4px 8px;border-radius:999px;border:1px solid #cbd5c4;background:#fff;color:#304b38;cursor:pointer;font-size:.82rem;';
-                link.onclick = () => { if (exists) { document.getElementById('searchInput').value = relName; switchTab('list', document.querySelectorAll('.nav-btn')[1]); renderWordList(); } else alert(`'${relName}' 단어는 아직 공동 단어장에 등록되지 않았습니다.`); };
-                relBox.appendChild(link);
-            });
-            item.querySelector('.related-add-btn').onclick = () => addRelatedWord(itemObj.eng);
 
             const actionDiv = document.createElement('div');
             actionDiv.className = 'action-buttons';
@@ -3183,24 +3110,6 @@ nav {
             item.appendChild(actionDiv);
             container.appendChild(item);
         });
-    }
-
-    function addRelatedWord(sourceEng) {
-        if (checkBanned()) return;
-        if (!currentUser) { alert('관련 단어를 등록하려면 먼저 로그인해 주세요.'); return; }
-        const target = prompt(`'${sourceEng}'와 관련된 영어 단어를 입력하세요. (동의어, 반의어 등)`);
-        if (!target || !target.trim()) return;
-        const relWord = target.trim();
-        if (relWord.toLowerCase() === sourceEng.toLowerCase()) { alert('자기 자신은 관련 단어로 등록할 수 없습니다.'); return; }
-        const type = prompt('관계 유형을 입력하세요. 예: 동의어, 반의어, 유의어, 관련어', '관련어');
-        if (type === null) return;
-        const index = words.findIndex(w => w.eng.toLowerCase() === sourceEng.toLowerCase());
-        if (index < 0) return;
-        words[index].relatedWords = Array.isArray(words[index].relatedWords) ? words[index].relatedWords : [];
-        if (words[index].relatedWords.some(r => (typeof r === 'string' ? r : r.word).toLowerCase() === relWord.toLowerCase())) { alert('이미 등록된 관련 단어입니다.'); return; }
-        words[index].relatedWords.push({word: relWord, type: (type.trim() || '관련어')});
-        saveWordsWithHistory(`'${sourceEng}' 관련 단어 등록: ${relWord}`);
-        renderWordList();
     }
 
     function deleteWord(originalIndex) {
@@ -3219,40 +3128,35 @@ nav {
 
     function startQuiz() {
         const quizArea = document.getElementById('quizArea');
-        const candidates = [];
-        words.forEach((w, wi) => {
-            (w.examples || []).forEach((ex, ei) => {
-                if (ex && (w.answers || [])[ei]) candidates.push({eng:w.eng, meaning:(w.meanings||[]).join(', '), meaningsArray:w.meanings||[], example:ex, translation:(w.translations||[])[ei]||'', answer:w.answers[ei], wordIndex:wi, exampleIndex:ei});
-            });
+        
+        let availableQuestions = [];
+        words.forEach(w => {
+            if (w.examples && w.examples.length > 0 && w.answers && w.answers.length > 0) {
+                for (let i = 0; i < w.examples.length; i++) {
+                    if (w.examples[i] && w.answers[i]) {
+                        availableQuestions.push({
+                            eng: w.eng,
+                            meaning: w.meanings.join(', '),
+                            meaningsArray: w.meanings,
+                            example: w.examples[i],
+                            translation: (w.translations || [])[i] || '',
+                            answer: w.answers[i]
+                        });
+                    }
+                }
+            }
         });
-        if (!candidates.length) { quizArea.innerHTML = '<div class="empty-state">퀴즈로 사용할 예문과 정답을 먼저 등록해 주세요.</div>'; return; }
-        const rows = words.map((w, wi) => {
-            const valid = (w.examples||[]).map((ex, ei) => ({ex,ei,answer:(w.answers||[])[ei]})).filter(x => x.ex && x.answer);
-            if (!valid.length) return '';
-            return `<div style="border:1px solid #dce2d4;border-radius:10px;padding:10px;margin:8px 0;background:#fffdf8;"><label style="font-weight:700;display:flex;gap:8px;align-items:center;"><input class="quiz-word-check" type="checkbox" data-word="${wi}" checked> ${escapeHtml(w.eng)} — ${escapeHtml((w.meanings||[]).join(', '))} <span style="font-size:.8rem;color:#687568;">(${valid.length}개 예문)</span></label><div style="margin:8px 0 0 25px;display:grid;gap:6px;">${valid.map(x=>`<label style="display:flex;gap:7px;align-items:flex-start;font-size:.88rem;"><input class="quiz-example-check" type="checkbox" data-word="${wi}" data-example="${x.ei}" checked><span>${escapeHtml(x.ex)}</span></label>`).join('')}</div></div>`;
-        }).join('');
-        quizArea.innerHTML = `<section style="padding:14px;border:1px solid #d8dfd0;border-radius:14px;background:#f8f7f0;margin-bottom:14px;"><h3 style="margin:0 0 6px;color:#304b38;">🎯 퀴즈 범위 선택</h3><p style="margin:0 0 10px;font-size:.88rem;color:#687568;">단어와 예문을 선택하세요. 선택한 예문만 문제로 출제됩니다.</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><button type="button" class="btn" onclick="setQuizSelection(true)">모두 선택</button><button type="button" class="btn" onclick="setQuizSelection(false)">모두 해제</button></div><div id="quizSelectionList">${rows}</div><button type="button" class="btn" style="width:100%;margin-top:10px;" onclick="startSelectedQuiz()">선택한 예문으로 퀴즈 시작</button></section><div id="quizPlayArea"></div>`;
-    }
 
-    function setQuizSelection(checked) {
-        document.querySelectorAll('#quizSelectionList input[type="checkbox"]').forEach(el => el.checked = checked);
-    }
+        if (availableQuestions.length < 5) {
+            let wrongNoteBtnHtml = wrongWordsList.length > 0 ? `<br><button class="btn" style="background-color:var(--warning); margin-top:10px;" onclick="startWrongQuiz()">오답 노트 복습하기 (${wrongWordsList.length}개)</button>` : '';
+            quizArea.innerHTML = `<div class="empty-state">예문과 예문 정답이 등록된 문제가 5개 이상 필요합니다!<br>(현재 사용 가능한 예문 문제 수: ${availableQuestions.length}개)<br><br>단어장에 예문과 변형 정답을 등록해주세요! ${wrongNoteBtnHtml}</div>`;
+            return;
+        }
 
-    function startSelectedQuiz() {
-        const selected = new Set(Array.from(document.querySelectorAll('.quiz-word-check:checked')).map(el => Number(el.dataset.word)));
-        const chosenExamples = new Set(Array.from(document.querySelectorAll('.quiz-example-check:checked')).map(el => `${el.dataset.word}:${el.dataset.example}`));
-        let pool = [];
-        words.forEach((w, wi) => {
-            if (!selected.has(wi)) return;
-            (w.examples||[]).forEach((ex, ei) => {
-                if (!chosenExamples.has(`${wi}:${ei}`) || !ex || !(w.answers||[])[ei]) return;
-                pool.push({eng:w.eng, meaning:(w.meanings||[]).join(', '), meaningsArray:w.meanings||[], example:ex, translation:(w.translations||[])[ei]||'', answer:w.answers[ei]});
-            });
-        });
-        if (!pool.length) { alert('퀴즈에 사용할 예문을 하나 이상 선택해 주세요.'); return; }
-        quizList = pool.sort(() => Math.random() - 0.5).slice(0, Math.min(5, pool.length));
-        currentQuizIndex = 0; quizScore = 0;
-        showQuestion(pool);
+        quizList = availableQuestions.sort(() => 0.5 - Math.random()).slice(0, 5);
+        currentQuizIndex = 0;
+        quizScore = 0;
+        showQuestion(availableQuestions);
     }
 
     function startWrongQuiz() {
@@ -3284,14 +3188,14 @@ nav {
     }
 
     function showQuestion(allPool) {
-        const quizArea = document.getElementById('quizPlayArea') || document.getElementById('quizArea');
+        const quizArea = document.getElementById('quizArea');
 
         if (currentQuizIndex >= quizList.length) {
             let wrongNoteBtnHtml = wrongWordsList.length > 0 ? `<br><button class="btn" style="background-color:var(--warning); margin-top:10px;" onclick="startWrongQuiz()">오답 노트 복습하기 (${wrongWordsList.length}개)</button>` : '';
             quizArea.innerHTML = `
                 <div class="quiz-result">
                     🎉 퀴즈 완료!<br><br>
-                    총 ${quizList.length}문제 중 <span style="color:var(--primary);">${quizScore}</span>문제를 맞추셨습니다!
+                    총 5문제 중 <span style="color:var(--primary);">${quizScore}</span>문제를 맞추셨습니다!
                     ${wrongNoteBtnHtml}
                     <br><br>
                     <button class="btn" onclick="startQuiz()">다시 풀기</button>
@@ -3327,7 +3231,7 @@ nav {
 
         quizArea.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-size: 0.85rem; color: var(--text-secondary);">문제 ${currentQuizIndex + 1} / ${quizList.length}</span>
+                <span style="font-size: 0.85rem; color: var(--text-secondary);">문제 ${currentQuizIndex + 1} / 5</span>
                 <span class="quiz-badge">예문 5지선다 퀴즈</span>
             </div>
             <div class="quiz-card">
@@ -3417,16 +3321,5 @@ nav {
 })();
 </script>
 
-<script id="site-version-initializer">
-  // 버전 번호는 파일 상단의 SITE_VERSION 한 곳에서 관리합니다.
-  document.addEventListener("DOMContentLoaded", () => {
-    const badge = document.getElementById("siteVersionBadge");
-    if (badge) {
-      badge.textContent = `v${SITE_VERSION}`;
-      badge.title = `사이트 버전: v${SITE_VERSION} · ${SITE_VERSION_DATE}`;
-      badge.setAttribute("aria-label", `사이트 버전 v${SITE_VERSION}`);
-    }
-  });
-</script>
 </body>
 </html>
