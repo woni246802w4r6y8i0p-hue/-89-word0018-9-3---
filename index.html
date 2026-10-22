@@ -1008,8 +1008,6 @@
         .folder-bar { background: #F1EFE5 !important; }
         .folder-bar .folder-btn { background: #FFFEFB !important; color: #56604D !important; border: 1px solid #D8DCCF !important; box-shadow: none !important; }
         .folder-bar .folder-btn:hover { background: #E9EDE2 !important; color: #46523D !important; }
-        .folder-bar .folder-btn[onclick*="openVisionModal"] { background: #A65332 !important; color: #FFFFFF !important; border-color: #A65332 !important; }
-        .folder-bar .folder-btn[onclick*="openVisionModal"]:hover { background: #884329 !important; border-color: #884329 !important; }
         .folder-bar .folder-btn[onclick*="openExcelModal"] { background: #56654A !important; color: #FFFFFF !important; border-color: #56654A !important; }
         .folder-bar .folder-btn[onclick*="openExcelModal"]:hover { background: #414E37 !important; border-color: #414E37 !important; }
         .folder-bar .folder-btn[onclick*="openHistoryModal"] { background: #E8E2D2 !important; color: #6C5838 !important; border-color: #D9CEB5 !important; }
@@ -1074,8 +1072,6 @@ button.btn:hover, button.add-sub-btn:hover { background-color: #617250 !importan
 button.folder-btn { background-color: #FFFEFB !important; color: #4F6044 !important; border: 1px solid #A8B39C !important; }
 button.folder-btn:hover { background-color: #E8EDE2 !important; }
 /* Distinct top-level utilities */
-button[onclick="openVisionModal()"] { background: #A65332 !important; color: #FFFFFF !important; border-color: #A65332 !important; }
-button[onclick="openVisionModal()"]:hover { background: #8D452B !important; }
 button[onclick="openExcelModal()"] { background: #566A4B !important; color: #FFFFFF !important; border-color: #566A4B !important; }
 button[onclick="openExcelModal()"]:hover { background: #43563A !important; }
 button[onclick="openHistoryModal()"] { background: #B17B36 !important; color: #FFFFFF !important; border-color: #B17B36 !important; }
@@ -1327,7 +1323,6 @@ nav {
         <label for="folderInput">📁 위키문서:</label>
         <input type="text" id="folderInput" placeholder="폴더명" onchange="changeFolder()">
         <button class="folder-btn" style="background-color:var(--primary); color:white;" onclick="openFolderSearchModal()">🔍 폴더검색</button>
-        <button class="folder-btn" style="background-color:#FFF1E8; color:#8F3F1D; border-color:#E8C5B2;" onclick="openVisionModal()">📸 사진입력</button>
         <button class="folder-btn" style="background-color:var(--warning); color:white; border-color:var(--warning);" onclick="openHistoryModal()">📜 역사</button>
         <button class="folder-btn" onclick="openCloneMergeModal()">📋 복제/합치기</button>
         <button class="folder-btn" style="background-color:#FFF1E8; color:#8F3F1D; border-color:#E8C5B2;" onclick="openExcelModal()">📊 엑셀관리</button>
@@ -1393,8 +1388,9 @@ nav {
 
         <!-- 2. 단어 목록 탭 -->
         <div id="tab-list" class="tab-content">
-            <div class="list-header">
+            <div class="list-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
                 <h2 style="font-size: 1.05rem;">단어 목록 (<span id="wordCount">0</span>개)</h2>
+                <button type="button" class="btn" onclick="openExcelImportModal()" style="background:#52664d;color:#fff;border-color:#52664d;">📥 엑셀 단어 가져오기</button>
             </div>
             
             <div class="search-box">
@@ -1432,6 +1428,80 @@ nav {
 </div>
 
 <!-- 단어 수정 모달 창 -->
+<!-- Excel import modal: parse locally, review/edit rows, then save selected entries to the current shared Firebase folder. -->
+<div id="excelImportModal" class="modal-overlay" style="z-index:1200;">
+  <div class="modal-card" style="width:min(1120px,96vw);max-width:1120px;max-height:90vh;overflow:auto;background:#f8f6ef;color:#26352b;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div><h3 style="margin:0 0 6px;color:#304b38;">엑셀 단어 가져오기</h3><p style="margin:0;font-size:.9rem;color:#667268;">파일은 브라우저에서 읽습니다. 선택한 단어만 현재 공동 단어장에 등록됩니다.</p></div>
+      <button type="button" class="btn" onclick="closeExcelImportModal()" style="background:#e7e2d6;color:#39463b;">닫기</button>
+    </div>
+    <div style="margin:16px 0;padding:14px;border:1px dashed #9aaa94;border-radius:12px;background:#f0eee4;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <button type="button" class="btn" onclick="downloadExcelImportTemplate()" style="background:#e2e8d8;color:#344a36;border:1px solid #b9c7b2;">📥 엑셀 양식 다운로드</button>
+        <span style="font-size:.8rem;color:#68766b;">직접 작성한 파일도, AI가 만들어 준 파일도 가져올 수 있어요.</span>
+      </div>
+
+      <div style="padding:14px;margin:0 0 14px;border:1px solid #c7d2bf;border-radius:12px;background:#faf9f3;">
+        <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;justify-content:space-between;">
+          <div style="flex:1;min-width:220px;">
+            <h4 style="margin:0 0 5px;color:#304b38;font-size:1rem;">📷 AI로 사진 속 단어 추출하기</h4>
+            <p style="margin:0;color:#667268;font-size:.86rem;line-height:1.55;">사이트가 AI를 직접 실행하지는 않아요. 원하는 AI에 사진과 아래 프롬프트를 보내고, AI가 만든 <strong>.xlsx 파일</strong>을 다운로드한 뒤 이 화면에서 가져오세요.</p>
+          </div>
+          <button type="button" class="btn" onclick="copyAIPhotoPrompt()" style="background:#52664d;color:#fff;border-color:#52664d;white-space:nowrap;">📋 AI 프롬프트 복사</button>
+        </div>
+        <ol style="margin:12px 0 10px;padding-left:22px;color:#39463b;font-size:.86rem;line-height:1.7;">
+          <li>아래 프롬프트를 복사하세요.</li>
+          <li>원하는 AI 대화창에 사진과 프롬프트를 함께 첨부하세요.</li>
+          <li>AI가 만든 Excel 파일(.xlsx)을 실제로 다운로드하세요.</li>
+          <li>다운로드한 파일을 아래에서 선택하고, 미리보기에서 확인한 뒤 등록하세요.</li>
+        </ol>
+        <label for="aiPhotoPrompt" style="display:block;font-weight:700;margin:0 0 6px;color:#39463b;">복사할 프롬프트</label>
+        <textarea id="aiPhotoPrompt" readonly rows="12" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #d6d1c4;border-radius:8px;background:#fffdf8;color:#26352b;font-size:.82rem;line-height:1.5;resize:vertical;">첨부한 사진을 분석해 영어 단어장을 만들어 줘. 반드시 실제 다운로드 가능한 Excel 파일(.xlsx)을 생성해 줘. 채팅에 표만 보여 주고 끝내지 마.
+
+첫 번째 시트 이름은 반드시 "단어 입력"으로 하고, 열은 아래 6개를 이 순서대로 정확히 만들어 줘.
+1. 영어 단어
+2. 품사
+3. 한국어 뜻
+4. 영어 예문
+5. 예문 한국어 해석
+6. 예문 정답
+
+작성 규칙:
+- 사진에서 확인되는 영어 단어와 한국어 뜻을 정확하게 추출해 줘.
+- 품사는 명사, 동사, 형용사, 부사 등 한국어로 적어 줘.
+- 사진에 예문이 있으면 우선 활용하고, 없으면 단어 뜻을 이해하기 쉬운 자연스러운 영어 예문을 만들어 줘.
+- 예문 한국어 해석은 영어 예문과 의미가 일치하도록 적어 줘.
+- 영어 예문에는 정답으로 사용할 목표 단어가 실제로 포함되어야 해.
+- "예문 정답"에는 예문에서 빈칸으로 바꿀 목표 단어의 형태를 정확히 적어 줘. 예문에서 과거형 등 변형형을 사용했다면 그 변형형을 적어 줘.
+- 사진에서 확실히 읽을 수 없는 내용은 임의로 만들어 내지 말고, 검토가 필요하다고 표시해 줘.
+- 중복 단어는 합치고, 한 단어를 한 행에 작성해 줘.
+- 첫 번째 시트에는 위 6개 열만 넣어 줘. 설명이나 참고사항은 별도 시트에 넣어 줘.
+- 한글과 영어가 깨지지 않도록 Excel 파일로 저장해 줘.
+
+마지막으로 실제 .xlsx 파일을 생성하고 사용자가 다운로드할 수 있는 파일로 첨부해 줘. 파일 생성이 불가능하다면 표만 제시하지 말고, 파일을 만들 수 없다고 명확히 알려 줘.</textarea>
+        <p style="margin:7px 0 0;color:#68766b;font-size:.78rem;">참고: AI가 파일을 만들 수 있는지와 사용량 제한은 이용 중인 AI 서비스에 따라 달라요. 사진은 이 사이트가 아니라 사용자가 선택한 AI 서비스에 직접 올립니다.</p>
+      </div>
+
+      <label for="excelImportFile" style="display:block;font-weight:700;margin-bottom:8px;">엑셀 파일 선택 (.xlsx / .xls / .csv)</label>
+      <input id="excelImportFile" type="file" accept=".xlsx,.xls,.csv" onchange="handleExcelImportFile(event)" style="width:100%;padding:10px;background:#fffdf8;border:1px solid #d6d1c4;border-radius:8px;">
+      <p style="font-size:.8rem;color:#68766b;margin:8px 0 0;">권장 열: 영어 단어 · 품사 · 한국어 뜻 · 영어 예문 · 예문 한국어 해석 · 예문 정답(선택). 양식의 첫 번째 시트에 단어를 입력하세요.</p>
+    </div>
+    <div id="excelImportStatus" role="status" style="margin:10px 0;font-size:.9rem;color:#53674e;"></div>
+    <div id="excelImportTableWrap" style="display:none;overflow:auto;border:1px solid #dedacd;border-radius:10px;background:#fffdf8;max-height:48vh;">
+      <table style="width:100%;min-width:900px;border-collapse:collapse;font-size:.85rem;">
+        <thead><tr style="position:sticky;top:0;background:#e8e5d9;z-index:1;">
+          <th style="padding:9px;border-bottom:1px solid #d8d4c8;"><input id="excelSelectAll" type="checkbox" checked onchange="toggleAllExcelRows(this.checked)" aria-label="전체 선택"></th>
+          <th style="padding:9px;border-bottom:1px solid #d8d4c8;">상태</th><th style="padding:9px;border-bottom:1px solid #d8d4c8;">영어 단어</th><th style="padding:9px;border-bottom:1px solid #d8d4c8;">품사</th><th style="padding:9px;border-bottom:1px solid #d8d4c8;">한국어 뜻</th><th style="padding:9px;border-bottom:1px solid #d8d4c8;">영어 예문</th><th style="padding:9px;border-bottom:1px solid #d8d4c8;">예문 해석</th><th style="padding:9px;border-bottom:1px solid #d8d4c8;">빈칸 정답</th>
+        </tr></thead><tbody id="excelImportTableBody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;">
+      <button type="button" class="btn" onclick="closeExcelImportModal()" style="background:#e7e2d6;color:#39463b;">취소</button>
+      <button type="button" class="btn" id="excelImportSaveBtn" onclick="saveSelectedExcelWords()" disabled style="background:#52664d;color:#fff;border-color:#52664d;">선택한 단어 등록</button>
+    </div>
+  </div>
+</div>
+
 <div id="editModal" class="modal-overlay">
     <div class="modal-card">
         <h3>단어 수정하기 (위키 편집)</h3>
@@ -1469,27 +1539,6 @@ nav {
     </div>
 </div>
 
-<!-- 학습지 사진 AI 입력 모달 창 -->
-<div id="visionModal" class="modal-overlay">
-    <div class="modal-card">
-        <h3>📸 학습지 사진 AI 자동 입력</h3>
-        <div class="form-group">
-            <label>학습지/프린트 사진 선택</label>
-            <input type="file" id="visionFileInput" accept="image/*" style="padding:8px; font-size:0.85rem;">
-        </div>
-        <div class="guide-box" style="display:block; margin-bottom:12px;">
-            <b>💡 안내:</b> 사진을 업로드하면 AI 연동을 통해 학습지 내 영어 단어, 뜻, 예문들을 자동으로 추출하여 현재 위키 문서에 한 번에 추가합니다.
-        </div>
-        <div id="visionLoading" style="display:none; text-align:center; font-weight:700; color:var(--primary); margin: 10px 0;">
-            ⏳ AI가 사진을 분석하고 있습니다... 잠시만 기다려주세요!
-        </div>
-        <div class="modal-btns">
-            <button class="btn" style="background-color:#94a3b8;" onclick="closeVisionModal()">취소</button>
-            <button class="btn" style="background-color:var(--primary);" onclick="processVisionImage()">AI 분석 및 단어 추가</button>
-        </div>
-    </div>
-</div>
-
 <!-- 도움말(매뉴얼) 모달 창 -->
 <div id="helpModal" class="modal-overlay">
     <div class="modal-card">
@@ -1498,10 +1547,6 @@ nav {
             <input type="text" id="helpSearchInput" placeholder="🔍 도움말 검색 (예: 사진, 폴더, 퀴즈)..." oninput="filterHelpList()">
         </div>
         <div id="helpListContainer" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
-            <div class="manual-item" data-keyword="사진 학습지 ai 자동 입력 이미지">
-                <h4>📸 학습지 사진 AI 자동 입력</h4>
-                <p>상단의 <b>[📸 사진입력]</b> 버튼을 눌러 단어장 프린트나 학습지 사진을 업로드하면, AI가 자동으로 단어와 뜻, 예문을 추출해 현재 위키 문서에 한 번에 등록해 줍니다.</p>
-            </div>
             <div class="manual-item" data-keyword="폴더 생성 이동 검색 복제 합치기">
                 <h4>📁 폴더(위키문서) 생성 및 이동 방법</h4>
                 <p>상단 입력창에 폴더 이름을 적거나 <b>[🔍 폴더검색]</b>을 눌러 기존 폴더 목록에서 쉽게 찾아 이동할 수 있습니다.</p>
@@ -1659,6 +1704,7 @@ nav {
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
     // 파이어베이스 클라우드 데이터베이스 설정
     const firebaseConfig = { apiKey: "AIzaSyALE_AeJWrNyMrBa_ozB1gZC2n0TrVoW-I", authDomain: "aaa999-c666a.firebaseapp.com", projectId: "aaa999-c666a", storageBucket: "aaa999-c666a.firebasestorage.app", messagingSenderId: "783744613456", appId: "1:783744613456:web:40c1a55bfbe80ae0da6555", measurementId: "G-P34YLD61N1" };
@@ -2002,51 +2048,6 @@ nav {
         updateActiveView();
     }
 
-    // 학습지 사진 AI 입력 모달 함수
-    function openVisionModal() {
-        document.getElementById('visionFileInput').value = '';
-        document.getElementById('visionLoading').style.display = 'none';
-        document.getElementById('visionModal').style.display = 'flex';
-    }
-
-    function closeVisionModal() {
-        document.getElementById('visionModal').style.display = 'none';
-    }
-
-    function processVisionImage() {
-        if (checkBanned()) return;
-        const fileInput = document.getElementById('visionFileInput');
-        if (!fileInput.files || fileInput.files.length === 0) {
-            alert('분석할 학습지 사진을 선택해주세요!');
-            return;
-        }
-
-        document.getElementById('visionLoading').style.display = 'block';
-
-        setTimeout(() => {
-            document.getElementById('visionLoading').style.display = 'none';
-            
-            const extractedMockWords = [
-                { eng: "participate", meanings: ["참여하다", "참가하다"], examples: ["Students _ in school activities."], translations: ["학생들은 학교 활동에 참여한다."], answers: ["participate"] },
-                { eng: "environment", meanings: ["환경"], examples: ["We must protect our natural _."], translations: ["우리는 우리의 자연 환경을 보호해야 한다."], answers: ["environment"] }
-            ];
-
-            let addedCount = 0;
-            extractedMockWords.forEach(ew => {
-                const exists = words.some(w => w.eng.toLowerCase() === ew.eng.toLowerCase());
-                if (!exists) {
-                    words.push(ew);
-                    addedCount++;
-                }
-            });
-
-            saveWordsWithHistory(`📸 학습지 사진 AI 자동 추출 (${addedCount}개 단어 추가)`);
-            renderWordList();
-            closeVisionModal();
-            alert(`🎉 학습지 사진 분석 완료! 총 ${addedCount}개의 새로운 단어와 예문이 위키 문서에 자동 추가되었습니다.`);
-        }, 1500);
-    }
-
     // 도움말(매뉴얼) 모달 관련 함수
     function openHelpModal() {
         document.getElementById('helpSearchInput').value = '';
@@ -2191,6 +2192,241 @@ nav {
         const activeTab = document.querySelector('.tab-content.active').id;
         if (activeTab === 'tab-list') renderWordList();
         if (activeTab === 'tab-quiz') startQuiz();
+    }
+
+    // ===== Excel word import (free, client-side parsing) =====
+    let excelImportRows = [];
+    const excelHeaderAliases = {
+      eng: ['영어 단어','영단어','단어','english word','english','word','headword','vocabulary'],
+      pos: ['품사','part of speech','pos','word class'],
+      meaning: ['한국어 뜻','뜻','의미','meaning','korean meaning','definition','translation'],
+      example: ['영어 예문','예문','example','example sentence','sentence'],
+      translation: ['예문 한국어 해석','예문 한국어 번역','예문 해석','해석','example translation','example korean translation','sentence translation','korean example'],
+      answer: ['예문 정답','빈칸 정답','정답','answer','blank answer','answer form']
+    };
+
+    async function copyAIPhotoPrompt() {
+      const promptField = document.getElementById('aiPhotoPrompt');
+      const promptText = promptField.value;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(promptText);
+        } else {
+          promptField.focus();
+          promptField.select();
+          const copied = document.execCommand('copy');
+          promptField.setSelectionRange(0, 0);
+          if (!copied) throw new Error('copy failed');
+        }
+        alert('AI 사진 단어 추출 프롬프트를 복사했어요. 원하는 AI에 사진과 함께 붙여넣으세요.');
+      } catch (error) {
+        promptField.focus();
+        promptField.select();
+        alert('자동 복사가 되지 않았어요. 선택된 프롬프트를 복사해 주세요. (Mac: ⌘C / Windows: Ctrl+C)');
+      }
+    }
+
+    function downloadExcelImportTemplate() {
+      if (!window.XLSX) {
+        alert('엑셀 양식 생성 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.');
+        return;
+      }
+      const headers = ['영어 단어', '품사', '한국어 뜻', '영어 예문', '예문 한국어 해석', '예문 정답'];
+      const dataSheet = XLSX.utils.aoa_to_sheet([headers]);
+      dataSheet['!cols'] = [{wch:22},{wch:14},{wch:26},{wch:48},{wch:48},{wch:20}];
+      dataSheet['!autofilter'] = { ref: 'A1:F1' };
+      const guideRows = [
+        ['항목','작성 방법','예시'],
+        ['영어 단어','필수. 단어의 기본형을 입력합니다.','participate'],
+        ['품사','선택. 명사/동사/형용사 등 입력합니다.','동사'],
+        ['한국어 뜻','필수. 단어의 뜻을 입력합니다.','참여하다'],
+        ['영어 예문','선택. 정답 단어가 포함된 원래 문장을 입력합니다.','I participate in the club.'],
+        ['예문 한국어 해석','선택. 예문의 한국어 해석을 입력합니다.','나는 그 동아리에 참여한다.'],
+        ['예문 정답','선택. 비워두면 영어 단어를 정답으로 사용합니다.','participate'],
+        ['주의','첫 번째 시트인 “단어 입력”에 단어를 입력하세요. 이 안내 시트는 업로드하지 않습니다.',''],
+        ['퀴즈 처리','예문 속 목표 단어를 빈칸으로 바꾸고 정답은 별도로 보관합니다.','I _____ in the club. → participate']
+      ];
+      const guideSheet = XLSX.utils.aoa_to_sheet(guideRows);
+      guideSheet['!cols'] = [{wch:22},{wch:72},{wch:45}];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, dataSheet, '단어 입력');
+      XLSX.utils.book_append_sheet(workbook, guideSheet, '작성 안내');
+      XLSX.writeFile(workbook, '영어단어위키_엑셀_가져오기_양식.xlsx');
+    }
+
+    function openExcelImportModal() {
+      if (checkBanned()) return;
+      excelImportRows = [];
+      document.getElementById('excelImportFile').value = '';
+      document.getElementById('excelImportStatus').textContent = '엑셀 파일을 선택하면 등록 전 미리보기가 표시됩니다.';
+      document.getElementById('excelImportTableBody').innerHTML = '';
+      document.getElementById('excelImportTableWrap').style.display = 'none';
+      document.getElementById('excelImportSaveBtn').disabled = true;
+      document.getElementById('excelSelectAll').checked = true;
+      document.getElementById('excelImportModal').style.display = 'flex';
+    }
+    function closeExcelImportModal() { document.getElementById('excelImportModal').style.display = 'none'; }
+
+    function normalizeExcelHeader(value) {
+      return String(value ?? '').toLowerCase().replace(/[\s_\-()（）·:：]/g, '').trim();
+    }
+    function findExcelColumn(headers, kind) {
+      const aliases = excelHeaderAliases[kind].map(normalizeExcelHeader);
+      return headers.findIndex(h => aliases.includes(normalizeExcelHeader(h)));
+    }
+    function readExcelCell(row, index) { return index >= 0 ? String(row[index] ?? '').trim() : ''; }
+
+    async function handleExcelImportFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const status = document.getElementById('excelImportStatus');
+      if (!window.XLSX) { status.textContent = '엑셀 읽기 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.'; return; }
+      try {
+        status.textContent = '파일을 읽는 중…';
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+        if (!matrix || matrix.length < 2) throw new Error('단어 데이터가 충분하지 않습니다. 첫 행은 열 제목, 다음 행부터 단어를 넣어 주세요.');
+        const headers = matrix[0].map(v => String(v ?? '').trim());
+        let columns = {};
+        ['eng','pos','meaning','example','translation','answer'].forEach(k => columns[k] = findExcelColumn(headers, k));
+        // Also accept a simple five-column sheet in the agreed order if headers are unfamiliar.
+        if (columns.eng < 0 && columns.meaning < 0 && columns.example < 0) {
+          columns = { eng:0, pos:1, meaning:2, example:3, translation:4, answer:5 };
+        }
+        if (columns.eng < 0 || columns.meaning < 0) throw new Error('영어 단어와 한국어 뜻 열을 찾지 못했습니다. 열 제목을 확인해 주세요.');
+        excelImportRows = matrix.slice(1).map((cells, idx) => {
+          const eng = readExcelCell(cells, columns.eng);
+          const pos = readExcelCell(cells, columns.pos);
+          const meaning = readExcelCell(cells, columns.meaning);
+          const rawExample = readExcelCell(cells, columns.example);
+          const translation = readExcelCell(cells, columns.translation);
+          const explicitAnswer = readExcelCell(cells, columns.answer);
+          const blanked = makeExcelBlankExample(rawExample, eng, explicitAnswer);
+          const invalid = !eng || !meaning;
+          const existing = !!eng && words.some(w => String(w.eng || '').trim().toLowerCase() === eng.toLowerCase());
+          const dupInFile = !!eng && matrix.slice(1, idx + 1).some(prev => readExcelCell(prev, columns.eng).toLowerCase() === eng.toLowerCase());
+          return { id: idx, selected: !invalid && !existing && !dupInFile, eng, pos, meaning, example: blanked.example, translation, answer: blanked.answer, originalExample: rawExample, invalid, duplicate: existing || dupInFile, duplicateInCloud: existing, duplicateInFile: dupInFile, blankWarning: blanked.warning };
+        }).filter(row => row.eng || row.meaning || row.example);
+        if (!excelImportRows.length) throw new Error('등록할 수 있는 단어 행이 없습니다.');
+        renderExcelImportTable();
+        document.getElementById('excelImportTableWrap').style.display = 'block';
+        const duplicateCount = excelImportRows.filter(r => r.duplicate).length;
+        const invalidCount = excelImportRows.filter(r => r.invalid).length;
+        status.textContent = `총 ${excelImportRows.length}개 행을 읽었습니다. 중복 ${duplicateCount}개, 필수 정보 누락 ${invalidCount}개. 중복/누락 행은 기본적으로 선택 해제되어 있습니다.`;
+        document.getElementById('excelImportSaveBtn').disabled = !excelImportRows.some(r => r.selected);
+      } catch (error) {
+        console.error('Excel import error:', error);
+        status.textContent = '파일을 읽지 못했습니다: ' + (error.message || '지원하지 않는 형식입니다.');
+        document.getElementById('excelImportTableWrap').style.display = 'none';
+        document.getElementById('excelImportSaveBtn').disabled = true;
+      }
+    }
+
+    function makeExcelBlankExample(sentence, headword, explicitAnswer) {
+      const original = String(sentence || '').trim();
+      const word = String(headword || '').trim();
+      if (!original) return { example: '', answer: explicitAnswer || word, warning: '' };
+      if (/(^|\s)_{1,}(?=\s|$)/.test(original) || original.includes('□')) {
+        return { example: original.replace(/_{2,}/g, '_'), answer: explicitAnswer || word, warning: '' };
+      }
+      // Prefer an explicitly supplied inflected answer (e.g. went for go), then try the headword.
+      const candidates = [explicitAnswer, word].filter((value, index, all) => value && all.findIndex(v => v.toLowerCase() === value.toLowerCase()) === index);
+      for (const candidate of candidates) {
+        const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp('(^|[^A-Za-z])(' + escaped + ')(?=$|[^A-Za-z])', 'i');
+        const match = original.match(regex);
+        if (match) {
+          return { example: original.replace(regex, (whole, prefix) => prefix + '_'), answer: explicitAnswer || match[2], warning: '' };
+        }
+      }
+      return { example: original, answer: explicitAnswer || word, warning: '예문에서 단어를 찾지 못함' };
+    }
+
+    function renderExcelImportTable() {
+      const tbody = document.getElementById('excelImportTableBody');
+      tbody.innerHTML = '';
+      excelImportRows.forEach((row, idx) => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #e6e1d5';
+        if (row.duplicate || row.invalid || row.blankWarning) tr.style.background = row.duplicate ? '#fff0d9' : row.invalid ? '#fce8df' : '#f7f3e8';
+        const checkboxCell = document.createElement('td'); checkboxCell.style.cssText = 'padding:7px;text-align:center;vertical-align:top;';
+        const cb = document.createElement('input'); cb.type='checkbox'; cb.checked=!!row.selected; cb.setAttribute('aria-label', row.eng || '행 선택'); cb.addEventListener('change',()=>{row.selected=cb.checked; updateExcelImportSaveState();}); checkboxCell.appendChild(cb); tr.appendChild(checkboxCell);
+        const statusCell = document.createElement('td'); statusCell.style.cssText='padding:7px;min-width:125px;vertical-align:top;';
+        statusCell.textContent = row.invalid ? '필수 정보 누락' : row.duplicate ? (row.duplicateInCloud ? '⚠️ 이미 등록됨' : '⚠️ 파일 내 중복') : row.blankWarning ? '예문 확인 필요' : '등록 가능';
+        tr.appendChild(statusCell);
+        const fields = ['eng','pos','meaning','example','translation','answer'];
+        fields.forEach(key => {
+          const td=document.createElement('td'); td.style.cssText='padding:5px;vertical-align:top;min-width:120px;';
+          const input=document.createElement(key==='meaning'||key==='example'||key==='translation'?'textarea':'input');
+          if(input.tagName==='TEXTAREA'){input.rows=2;input.style.resize='vertical';}
+          input.value=row[key] || ''; input.dataset.field=key; input.style.cssText += ';box-sizing:border-box;width:100%;padding:7px;border:1px solid #d8d4c8;border-radius:6px;background:#fffef9;color:#26352b;font:inherit;';
+          input.addEventListener('input',()=>{
+            row[key]=input.value;
+            if(key==='eng') { row.invalid=!row.eng.trim() || !row.meaning.trim(); row.duplicate=words.some(w=>String(w.eng||'').trim().toLowerCase()===row.eng.trim().toLowerCase()) || excelImportRows.some(other=>other!==row && other.eng.trim().toLowerCase()===row.eng.trim().toLowerCase()); }
+            if(key==='meaning') row.invalid=!row.eng.trim() || !row.meaning.trim();
+            updateExcelRowStatus(tr,row); updateExcelImportSaveState();
+          });
+          td.appendChild(input); tr.appendChild(td);
+        });
+        updateExcelRowStatus(tr,row);
+        tbody.appendChild(tr);
+      });
+      updateExcelImportSaveState();
+    }
+    function updateExcelRowStatus(tr,row) {
+      const cell=tr.children[1]; if(!cell)return;
+      cell.textContent=row.invalid?'필수 정보 누락':row.duplicate?(row.duplicateInCloud?'⚠️ 이미 등록됨':'⚠️ 중복 단어'):row.blankWarning?'예문 확인 필요':'등록 가능';
+      tr.style.background=row.duplicate?'#fff0d9':row.invalid?'#fce8df':row.blankWarning?'#f7f3e8':'';
+    }
+    function toggleAllExcelRows(checked) {
+      excelImportRows.forEach(row=>{ row.selected=!!checked && !row.invalid && !row.duplicate; });
+      renderExcelImportTable();
+      document.getElementById('excelSelectAll').checked=!!checked;
+    }
+    function updateExcelImportSaveState() {
+      const count=excelImportRows.filter(r=>r.selected && !r.invalid && !r.duplicate && r.eng.trim() && r.meaning.trim()).length;
+      const btn=document.getElementById('excelImportSaveBtn'); if(btn)btn.disabled=count===0;
+      const status=document.getElementById('excelImportStatus');
+      if(status && excelImportRows.length) status.textContent += '';
+    }
+
+    async function saveSelectedExcelWords() {
+      if (checkBanned()) return;
+      if (!db) { alert('Firebase에 연결되지 않아 공동 단어장에 저장할 수 없습니다. 인터넷 연결과 Firebase 설정을 확인해 주세요.'); return; }
+      const selected = excelImportRows.filter(r=>r.selected && !r.invalid && !r.duplicate && r.eng.trim() && r.meaning.trim());
+      if (!selected.length) { alert('등록할 단어를 선택해 주세요.'); return; }
+      const duplicateNow = selected.filter(r=>words.some(w=>String(w.eng||'').trim().toLowerCase()===r.eng.trim().toLowerCase()));
+      if (duplicateNow.length) { alert('등록 직전에 중복 단어가 발견되었습니다: ' + duplicateNow.map(r=>r.eng).join(', ') + '\n파일을 다시 확인해 주세요.'); return; }
+      const additions = selected.map(row=>{
+        const meanings = [row.pos ? `${row.pos}: ${row.meaning.trim()}` : row.meaning.trim()];
+        const examples = row.example.trim() ? [row.example.trim()] : [];
+        const translations = row.example.trim() ? [row.translation.trim()] : [];
+        const answers = row.example.trim() ? [row.answer.trim() || row.eng.trim()] : [];
+        return { eng: row.eng.trim(), meanings, examples, translations, answers };
+      });
+      const previousWords = words.slice();
+      words = words.concat(additions);
+      try {
+        // Existing app storage shape and Firestore folder are intentionally reused.
+        const timestamp = new Date().toLocaleString();
+        const previousSnapshot = histories.length ? histories[0].wordsSnapshot : previousWords;
+        histories.unshift({ id:'hist_excel_'+Date.now(), time:timestamp, editor:editorName, summary:`엑셀 단어 가져오기 (${additions.length}개 등록)`, diffHtml:`엑셀에서 ${additions.length}개 단어를 등록했습니다.`, wordsSnapshot:JSON.parse(JSON.stringify(words)) });
+        if(histories.length>20)histories.pop();
+        await db.collection('vocab_folders').doc(currentFolder).set({words, histories, reports, updatedAt:new Date()});
+        localStorage.setItem('vocab_folder_'+currentFolder, JSON.stringify(words));
+        localStorage.setItem('vocab_history_'+currentFolder, JSON.stringify(histories));
+        localStorage.setItem('vocab_reports_'+currentFolder, JSON.stringify(reports));
+        const statusSpan=document.getElementById('syncStatus'); if(statusSpan)statusSpan.textContent='☁️ 연동됨 ('+currentFolder+')';
+        updateActiveView();
+        closeExcelImportModal();
+        alert(`등록 완료! ${additions.length}개 단어를 [${currentFolder}] 공동 단어장에 저장했습니다.`);
+      } catch (error) {
+        console.error('Excel import cloud save failed:',error);
+        words = previousWords;
+        alert('Firebase 저장에 실패했습니다. 변경 사항은 공동 단어장에 반영되지 않았습니다. 로그인 상태와 Firestore 보안 규칙을 확인해 주세요.\n오류: '+(error.message||error.code||'알 수 없는 오류'));
+      }
     }
 
     loadWordsFromCloud();
