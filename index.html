@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>클라우드 위키 단어장</title>
+    <!-- 버전 관리: MAJOR.MINOR.PATCH (큰 개편.기능 추가.오류 수정) -->
+    <script>
+      const SITE_VERSION = "1.2.0";
+      const SITE_VERSION_DATE = "2026-10-22";
+      document.title = `클라우드 위키 단어장 · v${SITE_VERSION}`;
+    </script>
     <!-- 파이어베이스 SDK 불러오기 -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -1306,6 +1312,27 @@ nav {
   background: rgba(247, 244, 233, .25) !important;
 }
 </style>
+<style id="site-version-badge-style">
+/* 사이트 버전 표시 */
+.container > header .site-version-badge {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  margin-left: 10px;
+  padding: 4px 8px;
+  border: 1px solid rgba(247, 244, 233, .35);
+  border-radius: 999px;
+  background: rgba(247, 244, 233, .12);
+  color: #F7F4E9;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  vertical-align: middle;
+}
+@media (max-width: 560px) {
+  .container > header .site-version-badge { margin-left: 6px; padding: 3px 6px; font-size: .62rem; }
+}
+</style>
 <style id="restore-folder-toolbar-original-color">
 /* Restore the document-action toolbar to its original beige color. */
 .container .folder-bar { background: #EDE9DE !important; background-color: #EDE9DE !important; }
@@ -1316,6 +1343,7 @@ nav {
 <div class="container">
     <header>
         클라우드 위키 단어장
+        <span class="site-version-badge" id="siteVersionBadge" title="사이트 버전"></span>
         <button class="help-icon-btn" onclick="openHelpModal()">📖 도움말</button>
     </header>
     
@@ -1659,31 +1687,44 @@ nav {
     </div>
 </div>
 
-<!-- 엑셀(CSV) 관리 모달 창 -->
+<!-- 엑셀 관리 모달 창 -->
 <div id="excelModal" class="modal-overlay">
-    <div class="modal-card">
-        <h3>📊 엑셀 (CSV) 내보내기 / 가져오기</h3>
-        <button type="button" class="folder-btn" style="width:100%; margin-bottom:12px; background:#FAF8F4; color:var(--text-color); border-color:var(--border-color); padding:8px;" onclick="toggleCsvGuide()">
-            ❓ 파일 작성 방법 보기 (가이드 열기/닫기)
-        </button>
+    <div class="modal-card" style="max-width:640px;max-height:90vh;overflow:auto;">
+        <h3>📊 엑셀 관리</h3>
+        <p style="margin:-4px 0 14px;color:var(--text-muted,#68766b);font-size:.88rem;line-height:1.55;">엑셀 양식과 작성 규칙을 확인하고, 같은 형식의 파일을 미리보기로 검토한 뒤 단어장에 추가할 수 있어요.</p>
 
-        <div id="csvGuideBox" class="guide-box">
-            <b>📄 CSV 파일 작성 규칙:</b><br>
-            헤더: <code>English,Meanings,Examples,Translations,Answers</code><br>
-            각 항목은 <b>세미콜론(;)</b>으로 구분합니다.
-        </div>
+        <section style="padding:14px;margin:0 0 14px;border:1px solid #c7d2bf;border-radius:12px;background:#f7f8f1;color:#304b38;">
+            <h4 style="margin:0 0 8px;font-size:1rem;">📥 1. 엑셀 양식 다운로드</h4>
+            <p style="margin:0 0 10px;font-size:.85rem;line-height:1.6;">아래 양식에는 입력 시트와 작성 안내 시트가 포함되어 있어요. 첫 번째 시트에 단어를 입력한 뒤 이 사이트에서 가져오세요.</p>
+            <button type="button" class="btn" style="background:#52664d;color:#fff;width:100%;" onclick="downloadExcelImportTemplate()">📥 엑셀 양식(.xlsx) 다운로드</button>
+            <button type="button" class="btn" style="background:#e2e8d8;color:#344a36;border:1px solid #b9c7b2;width:100%;margin-top:8px;" onclick="openExcelImportModal()">📤 작성한 엑셀 파일 가져오기</button>
+        </section>
 
+        <section style="padding:14px;margin:0 0 16px;border:1px solid #d9d5c8;border-radius:12px;background:#fffdf8;color:#344239;">
+            <h4 style="margin:0 0 8px;font-size:1rem;">📋 2. 엑셀 작성 규칙</h4>
+            <ol style="margin:0;padding-left:22px;font-size:.86rem;line-height:1.75;">
+                <li><b>열 순서:</b> 단어 → 뜻 → 예문 → 예문해석 → 정답. 제목은 이 순서대로 작성하세요.</li>
+                <li><b>첫 번째 행:</b> 열 제목입니다. 실제 단어 데이터는 두 번째 행부터 입력하세요.</li>
+                <li><b>단어:</b> 첫 번째 열에 영어 단어 또는 표현을 입력하세요. 한 행에 한 단어를 권장합니다.</li>
+                <li><b>빈칸 문제:</b> 예문에서 문제로 낼 단어/표현을 밑줄 문자 <code>_</code> 하나로 바꾸고, 그 답을 정답 열에 입력하세요. 예: <code>I _ to school.</code> / 정답: <code>go</code></li>
+                <li><b>여러 뜻·예문:</b> 한 셀에 여러 항목이 있으면 <code>/</code>로 구분하세요.</li>
+                <li><b>순서 맞추기:</b> 예문·예문해석·정답이 여러 개라면 같은 순서와 개수로 <code>/</code>를 사용하세요.</li>
+                <li><b>시트:</b> 가져오기는 첫 번째 시트인 <b>단어 입력</b>만 읽습니다. 안내 시트는 참고용입니다.</li>
+                <li><b>파일 형식:</b> 가능하면 <code>.xlsx</code>로 저장하세요. 파일을 가져온 뒤 미리보기에서 내용을 확인하고 등록하세요.</li>
+            </ol>
+        </section>
+
+        <h4 style="margin:0 0 8px;">📄 3. 파일 백업 / 단어 추가</h4>
         <div class="form-group">
-            <label>1. 현재 단어장 백업 (내보내기)</label>
-            <button class="btn" style="background-color:var(--primary); font-size:0.9rem;" onclick="exportToCSV()">📥 CSV 파일 다운로드</button>
+            <label>현재 단어장 백업 (내보내기)</label>
+            <button class="btn" style="background-color:var(--primary); font-size:0.9rem;" onclick="exportToCSV()">📥 단어장 백업 파일 다운로드(.csv)</button>
         </div>
-
         <hr style="border:0; border-top:1px solid var(--border-color); margin: 14px 0;">
-
         <div class="form-group">
-            <label>2. 파일로 단어 추가 (가져오기)</label>
-            <input type="file" id="csvFileInput" accept=".csv" style="padding:8px; font-size:0.85rem; margin-bottom:8px;">
-            <button class="btn" style="background-color:var(--primary); font-size:0.9rem;" onclick="importFromCSV()">📤 CSV 파일 업로드 및 병합</button>
+            <label>파일로 단어 추가 (엑셀 양식 기준)</label>
+            <p style="font-size:.82rem;line-height:1.55;color:var(--text-muted,#68766b);margin:0 0 8px;">위에서 안내한 열 제목 <b>단어 · 뜻 · 예문 · 예문해석 · 정답</b>을 사용하는 .xlsx 파일을 선택하세요. 파일을 읽은 뒤 미리보기에서 확인하고 등록합니다.</p>
+            <input type="file" id="csvFileInput" accept=".xlsx,.xls,.csv" style="padding:8px; font-size:0.85rem; margin-bottom:8px;">
+            <button class="btn" style="background-color:var(--primary); font-size:0.9rem;" onclick="importFromCSV()">📤 파일 읽기 및 미리보기</button>
         </div>
 
         <div class="modal-btns" style="margin-top:14px;">
@@ -2950,11 +2991,6 @@ nav {
 
     function openExcelModal() { document.getElementById('excelModal').style.display = 'flex'; }
     function closeExcelModal() { document.getElementById('excelModal').style.display = 'none'; }
-    function toggleCsvGuide() {
-        const box = document.getElementById('csvGuideBox');
-        box.style.display = box.style.display === 'block' ? 'none' : 'block';
-    }
-
     function exportToCSV() {
         if (words.length === 0) { alert('내보낼 단어가 없습니다.'); return; }
         let csvContent = "\uFEFFEnglish,Meanings,Examples,Translations,Answers\n";
@@ -2976,45 +3012,29 @@ nav {
         document.body.removeChild(a);
     }
 
-    function importFromCSV() {
+    async function importFromCSV() {
         if (checkBanned()) return;
-        const fileInput = document.getElementById('csvFileInput');
-        if (!fileInput.files || fileInput.files.length === 0) { alert('파일을 선택해주세요.'); return; }
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const lines = e.target.result.split('\n');
-            let addedCount = 0;
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-                const row = [];
-                let inQuotes = false, currentVal = '';
-                for (let char of line) {
-                    if (char === '"') inQuotes = !inQuotes;
-                    else if (char === ',' && !inQuotes) { row.push(currentVal.trim()); currentVal = ''; }
-                    else currentVal += char;
-                }
-                row.push(currentVal.trim());
-                if (row.length >= 2) {
-                    const eng = row[0].replace(/^"|"$/g, '');
-                    const meanings = row[1].replace(/^"|"$/g, '').split(';').map(m => m.trim()).filter(m => m);
-                    const examples = row[2] ? row[2].replace(/^"|"$/g, '').split(';').map(x => x.trim()) : [];
-                    const translations = row[3] ? row[3].replace(/^"|"$/g, '').split(';').map(x => x.trim()) : [];
-                    const answers = row[4] ? row[4].replace(/^"|"$/g, '').split(';').map(x => x.trim()) : [];
-                    if (eng && meanings.length > 0) {
-                        words.push({ eng, meanings, examples, translations, answers });
-                        addedCount++;
-                    }
-                }
-            }
-            if (addedCount > 0) {
-                saveWordsWithHistory(`CSV 업로드 ${addedCount}개 추가`);
-                renderWordList();
-                closeExcelModal();
-                alert(`${addedCount}개 단어가 추가되었습니다!`);
-            }
-        };
-        reader.readAsText(fileInput.files[0]);
+        const sourceInput = document.getElementById('csvFileInput');
+        const file = sourceInput && sourceInput.files && sourceInput.files[0];
+        if (!file) { alert('가져올 .xlsx 파일을 선택해 주세요.'); return; }
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+            alert('지원하는 파일은 .xlsx, .xls, .csv입니다. 가능하면 제공된 엑셀 양식(.xlsx)을 사용해 주세요.');
+            return;
+        }
+        // Use the same preview, validation, answer mapping and Firebase-save flow
+        // as the dedicated Excel importer. Do not bypass validation with legacy CSV parsing.
+        openExcelImportModal();
+        const targetInput = document.getElementById('excelImportFile');
+        try {
+            const transfer = new DataTransfer();
+            transfer.items.add(file);
+            targetInput.files = transfer.files;
+            await handleExcelImportFile({ target: targetInput });
+        } catch (error) {
+            console.error('Word file import handoff failed:', error);
+            document.getElementById('excelImportStatus').textContent = '파일을 열지 못했습니다. 엑셀 관리 메뉴의 [엑셀 양식 다운로드]로 받은 양식인지 확인해 주세요.';
+        }
     }
 
     function openReportModal(engText) {
@@ -3397,5 +3417,16 @@ nav {
 })();
 </script>
 
+<script id="site-version-initializer">
+  // 버전 번호는 파일 상단의 SITE_VERSION 한 곳에서 관리합니다.
+  document.addEventListener("DOMContentLoaded", () => {
+    const badge = document.getElementById("siteVersionBadge");
+    if (badge) {
+      badge.textContent = `v${SITE_VERSION}`;
+      badge.title = `사이트 버전: v${SITE_VERSION} · ${SITE_VERSION_DATE}`;
+      badge.setAttribute("aria-label", `사이트 버전 v${SITE_VERSION}`);
+    }
+  });
+</script>
 </body>
 </html>
