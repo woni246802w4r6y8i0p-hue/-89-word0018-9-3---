@@ -1312,7 +1312,7 @@ nav {
 </style>
 </head>
 <body>
-<div id="site-version-badge" title="사이트 버전 v1.5.0 · 2026-10-25" style="position:fixed;left:12px;bottom:12px;z-index:9998;padding:5px 9px;border:1px solid #d5d0c2;border-radius:999px;background:#f7f4eb;color:#53674e;font:600 11px/1.2 system-ui,sans-serif;box-shadow:0 2px 8px #00000012;">v1.5.0 · 2026-10-25</div>
+<div id="site-version-badge" title="사이트 버전 v1.6.0 · 2026-10-26" style="position:fixed;left:12px;bottom:12px;z-index:9998;padding:5px 9px;border:1px solid #d5d0c2;border-radius:999px;background:#f7f4eb;color:#53674e;font:600 11px/1.2 system-ui,sans-serif;box-shadow:0 2px 8px #00000012;">v1.6.0 · 2026-10-26</div>
 
 <div class="container">
     <header>
@@ -1747,11 +1747,10 @@ nav {
     <div class="modal-card">
         <h3>🛡️ 관리자 제재 센터</h3>
         <div style="background:#f1f5f9; padding:12px; border-radius:12px; margin-bottom:14px; border:1px solid var(--border-color);">
-            <label style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom:4px;">🔐 관리자 비밀번호 변경</label>
-            <div style="display:flex; gap:6px;">
-                <input type="password" id="newAdminPwInput" placeholder="새 비밀번호 입력" style="padding:8px; font-size:0.85rem;">
-                <button class="folder-btn" style="background-color:var(--primary); color:white; border-color:var(--primary); flex-shrink:0;" onclick="changeAdminPassword()">변경</button>
-            </div>
+            <label style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom:4px;">🔐 관리자 비밀번호 재설정</label>
+            <p style="font-size:.78rem;line-height:1.5;margin:5px 0 8px;">보안상 기존 비밀번호를 확인하거나 표시할 수는 없습니다. 관리자 계정 이메일로 재설정 링크를 보낼 수 있습니다.</p>
+            <button class="folder-btn" style="background-color:var(--primary); color:white; border-color:var(--primary);" onclick="changeAdminPassword()">관리자 이메일로 재설정 링크 보내기</button>
+            <p id="adminPasswordResetStatus" role="status" style="font-size:.78rem;margin:7px 0 0;overflow-wrap:anywhere;"></p>
         </div>
         <div style="padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:12px;">
           <b>⛔ 회원 활동 정지</b>
@@ -1943,43 +1942,123 @@ measurementId: "G-P34YLD61N1"
         return Number.isFinite(millis) && millis > Date.now();
     }
 
-    async function signUpWithEmail() {
-        if (!auth) { alert('Firebase 인증 연결에 실패했습니다. 인터넷과 Firebase 설정을 확인해주세요.'); return; }
-        const email = prompt('회원가입할 이메일 주소를 입력하세요:');
-        if (!email) return;
-        const password = prompt('비밀번호를 입력하세요 (6자 이상):');
-        if (!password) return;
-        try {
-            const credential = await auth.createUserWithEmailAndPassword(email.trim(), password);
-            try {
-                await credential.user.sendEmailVerification();
-                alert('회원가입이 완료되었습니다. Firebase가 인증 이메일 발송 요청을 접수했습니다. 실제 메일 도착까지 보장되는 것은 아닙니다. 받은편지함과 스팸함을 확인해 주세요. 인증 전에는 단어를 수정할 수 없습니다.');
-            } catch (verificationError) {
-                alert('계정은 만들어졌지만 인증 이메일을 보내지 못했습니다. 아래의 [인증 이메일 다시 보내기] 버튼을 눌러 다시 시도해 주세요.\n오류: ' + authErrorMessage(verificationError));
-            }
-            updateAuthUI();
-        } catch (error) { alert('회원가입 실패: ' + authErrorMessage(error)); }
+    let authDialogMode = 'login';
+    function openAuthDialog(mode) {
+        authDialogMode = mode;
+        const modal = document.getElementById('authDialog');
+        document.getElementById('authDialogTitle').textContent = mode === 'signup' ? '회원가입' : '로그인';
+        document.getElementById('authSubmitBtn').textContent = mode === 'signup' ? '회원가입' : '로그인';
+        document.getElementById('authPassword').autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
+        document.getElementById('authPassword').value = '';
+        document.getElementById('authPassword').type = 'password';
+        document.getElementById('toggleAuthPassword').textContent = '보기';
+        document.getElementById('authPasswordConfirm').value = '';
+        document.getElementById('authPasswordConfirm').type = 'password';
+        document.getElementById('toggleAuthPasswordConfirm').textContent = '보기';
+        document.getElementById('confirmPasswordRow').style.display = mode === 'signup' ? 'block' : 'none';
+        document.getElementById('authPasswordConfirm').required = mode === 'signup';
+        document.getElementById('forgotPasswordBtn').style.display = mode === 'login' ? 'block' : 'none';
+        document.getElementById('authDialogError').textContent = '';
+        document.getElementById('authDialogError').style.color = '#a13b2d';
+        document.getElementById('rememberEmail').checked = localStorage.getItem('wordwikiRememberEmail') === 'true';
+        document.getElementById('authEmail').value = localStorage.getItem('wordwikiRememberEmail') === 'true' ? (localStorage.getItem('wordwikiSavedEmail') || '') : '';
+        document.getElementById('rememberEmailRow').style.display = mode === 'login' ? 'flex' : 'none';
+        modal.style.display = 'flex';
+        setTimeout(() => document.getElementById('authEmail').focus(), 50);
     }
-
-    async function loginWithEmail() {
-        if (!auth) { alert('Firebase 인증 연결에 실패했습니다. 인터넷과 Firebase 설정을 확인해주세요.'); return; }
-        const email = prompt('가입한 이메일 주소를 입력하세요:');
-        if (!email) return;
-        const password = prompt('비밀번호를 입력하세요:');
-        if (!password) return;
+    function closeAuthDialog() { document.getElementById('authDialog').style.display = 'none'; }
+    function toggleAuthPasswordVisibility() {
+        const input = document.getElementById('authPassword');
+        const btn = document.getElementById('toggleAuthPassword');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.textContent = show ? '숨기기' : '보기';
+        btn.setAttribute('aria-label', show ? '비밀번호 숨기기' : '비밀번호 보기');
+    }
+    function toggleAuthPasswordConfirmVisibility() {
+        const input = document.getElementById('authPasswordConfirm');
+        const btn = document.getElementById('toggleAuthPasswordConfirm');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.textContent = show ? '숨기기' : '보기';
+        btn.setAttribute('aria-label', show ? '비밀번호 확인 숨기기' : '비밀번호 확인 보기');
+    }
+    async function sendPasswordReset() {
+        const email = document.getElementById('authEmail').value.trim();
+        const errorBox = document.getElementById('authDialogError');
+        if (!auth) { errorBox.style.color = '#b42318'; errorBox.textContent = 'Firebase 인증 연결을 확인해주세요.'; return; }
+        if (!email) { errorBox.style.color = '#b42318'; errorBox.textContent = '비밀번호 재설정 링크를 받을 이메일 주소를 먼저 입력해주세요.'; document.getElementById('authEmail').focus(); return; }
+        const btn = document.getElementById('forgotPasswordBtn');
+        btn.disabled = true;
+        errorBox.style.color = '#657166';
+        errorBox.textContent = '비밀번호 재설정 이메일을 보내는 중...';
         try {
-            const credential = await auth.signInWithEmailAndPassword(email.trim(), password);
-            await credential.user.reload();
-            currentUser = auth.currentUser;
-            if (currentUser && currentUser.emailVerified) {
-                await currentUser.getIdToken(true);
-                alert('로그인되었습니다. 이메일 인증이 확인되었습니다.');
+            await auth.sendPasswordResetEmail(email);
+            errorBox.style.color = '#2f6b3c';
+            errorBox.textContent = '재설정 이메일 발송을 요청했어요. 받은편지함과 스팸함을 확인해주세요.';
+        } catch (error) {
+            errorBox.style.color = '#b42318';
+            errorBox.textContent = authErrorMessage(error);
+        } finally { btn.disabled = false; }
+    }
+    async function submitAuthDialog(event) {
+        event.preventDefault();
+        if (!auth) { document.getElementById('authDialogError').textContent = 'Firebase 인증 연결에 실패했습니다. 인터넷과 Firebase 설정을 확인해주세요.'; return; }
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value;
+        const errorBox = document.getElementById('authDialogError');
+        const submitBtn = document.getElementById('authSubmitBtn');
+        if (!email || !password) { errorBox.style.color = '#b42318'; errorBox.textContent = '이메일과 비밀번호를 모두 입력해주세요.'; return; }
+        if (authDialogMode === 'signup') {
+            const confirmPassword = document.getElementById('authPasswordConfirm').value;
+            if (password !== confirmPassword) { errorBox.style.color = '#b42318'; errorBox.textContent = '비밀번호와 비밀번호 확인이 일치하지 않습니다.'; document.getElementById('authPasswordConfirm').focus(); return; }
+        }
+        submitBtn.disabled = true;
+        errorBox.style.color = '#657166';
+        errorBox.textContent = '처리 중...';
+        try {
+            if (authDialogMode === 'signup') {
+                const credential = await auth.createUserWithEmailAndPassword(email, password);
+                try {
+                    await credential.user.sendEmailVerification();
+                    closeAuthDialog();
+                    alert('회원가입이 완료되었습니다. 인증 이메일 발송 요청을 접수했습니다. 받은편지함과 스팸함을 확인해주세요. 이메일 인증 전에는 단어를 수정할 수 없습니다.');
+                } catch (verificationError) {
+                    closeAuthDialog();
+                    alert('계정은 만들어졌지만 인증 이메일을 보내지 못했습니다. [인증 이메일 다시 보내기] 버튼으로 재시도해주세요.\n오류: ' + authErrorMessage(verificationError));
+                }
+                updateAuthUI();
             } else {
-                alert('로그인은 되었지만 이메일 인증이 아직 완료되지 않았습니다. 이메일의 인증 링크를 누른 뒤 [인증 완료 확인]을 눌러주세요. 인증 전에는 단어를 수정할 수 없습니다.');
+                await auth.signInWithEmailAndPassword(email, password);
+                await auth.currentUser.reload();
+                currentUser = auth.currentUser;
+                if (document.getElementById('rememberEmail').checked) {
+                    localStorage.setItem('wordwikiRememberEmail', 'true');
+                    localStorage.setItem('wordwikiSavedEmail', email);
+                } else {
+                    localStorage.setItem('wordwikiRememberEmail', 'false');
+                    localStorage.removeItem('wordwikiSavedEmail');
+                }
+                if (currentUser && currentUser.emailVerified) {
+                    await currentUser.getIdToken(true);
+                    closeAuthDialog();
+                    alert('로그인되었습니다. 이메일 인증이 확인되었습니다.');
+                } else {
+                    closeAuthDialog();
+                    alert('로그인은 되었지만 이메일 인증이 아직 완료되지 않았습니다. 이메일의 인증 링크를 누른 뒤 [인증 완료 확인]을 눌러주세요. 인증 전에는 단어를 수정할 수 없습니다.');
+                }
+                updateAuthUI();
             }
-            updateAuthUI();
-        } catch (error) { alert('로그인 실패: ' + authErrorMessage(error)); }
+        } catch (error) {
+            errorBox.style.color = '#b42318';
+            errorBox.textContent = authErrorMessage(error);
+        } finally {
+            submitBtn.disabled = false;
+            if (document.getElementById('authDialog').style.display !== 'none' && errorBox.textContent === '처리 중...') errorBox.textContent = '';
+        }
     }
+    async function signUpWithEmail() { openAuthDialog('signup'); }
+    async function loginWithEmail() { openAuthDialog('login'); }
 
     async function resendVerificationEmail() {
         if (!auth || !auth.currentUser) {
@@ -2034,9 +2113,10 @@ measurementId: "G-P34YLD61N1"
             'auth/email-already-in-use': '이미 가입된 이메일입니다.',
             'auth/invalid-email': '이메일 주소 형식이 올바르지 않습니다.',
             'auth/weak-password': '비밀번호는 6자 이상으로 입력해주세요.',
-            'auth/user-not-found': '가입된 계정을 찾을 수 없습니다.',
-            'auth/wrong-password': '비밀번호가 올바르지 않습니다.',
-            'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.',
+            'auth/user-not-found': '가입한 이력이 없는 이메일입니다. 이메일 주소를 확인하거나 회원가입을 해주세요.',
+            'auth/wrong-password': '비밀번호가 틀렸습니다. 다시 입력해주세요.',
+            'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다. 이메일 주소와 비밀번호를 확인해주세요.',
+            'auth/missing-email': '이메일 주소를 입력해주세요.',
             'auth/too-many-requests': '시도가 너무 많습니다. 잠시 후 다시 시도해주세요.'
         };
         return messages[error.code] || error.message || '알 수 없는 오류';
@@ -2193,8 +2273,29 @@ measurementId: "G-P34YLD61N1"
         openAdminModal();
     }
 
-    function changeAdminPassword() {
-        alert('보안을 위해 웹페이지 안에서 관리자 비밀번호를 변경하는 기능은 제거했습니다. Firebase Authentication 계정의 비밀번호를 사용하세요.');
+    async function changeAdminPassword() {
+        const status = document.getElementById('adminPasswordResetStatus');
+        if (!status) return;
+        if (!auth || !currentUser || !isActiveAdmin()) {
+            status.style.color = '#a13b2d';
+            status.textContent = '활성 관리자 계정으로 로그인해야 합니다.';
+            return;
+        }
+        if (!currentUser.email) {
+            status.style.color = '#a13b2d';
+            status.textContent = '관리자 계정에 연결된 이메일 주소가 없습니다.';
+            return;
+        }
+        status.style.color = '#657166';
+        status.textContent = '재설정 이메일을 요청하는 중...';
+        try {
+            await auth.sendPasswordResetEmail(currentUser.email);
+            status.style.color = '#2f6b3c';
+            status.textContent = '관리자 이메일 주소로 재설정 이메일 발송을 요청했습니다. 받은편지함과 스팸함을 확인해주세요.';
+        } catch (error) {
+            status.style.color = '#a13b2d';
+            status.textContent = authErrorMessage(error);
+        }
     }
 
     async function applyModeration() {
@@ -3556,6 +3657,40 @@ measurementId: "G-P34YLD61N1"
  document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const t=(b.innerText||b.textContent||'').trim();if(/정답|맞았|correct/i.test(t)){say('정답이야! 정말 잘했어! ✨','wordy-happy');}else if(/오답|틀렸|다시 도전|wrong/i.test(t)){say('괜찮아! 틀린 단어가 더 오래 기억날 거야.','wordy-sad');}},true);
 })();
 </script>
+
+
+<div id="authDialog" role="dialog" aria-modal="true" aria-labelledby="authDialogTitle" style="display:none;position:fixed;inset:0;z-index:10020;background:rgba(20,30,22,.58);align-items:center;justify-content:center;padding:18px;">
+  <div style="width:min(100%,420px);background:#fffdf7;border:1px solid #d8d2c2;border-radius:18px;padding:24px;box-shadow:0 18px 60px #0003;color:#26372b;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;">
+      <h2 id="authDialogTitle" style="margin:0;font-size:1.3rem;">로그인</h2>
+      <button type="button" class="folder-btn" onclick="closeAuthDialog()" aria-label="닫기">✕</button>
+    </div>
+    <form onsubmit="submitAuthDialog(event)">
+      <label for="authEmail" style="display:block;font-weight:700;margin:10px 0 6px;">이메일 주소</label>
+      <input id="authEmail" name="email" type="email" autocomplete="email" required placeholder="example@email.com" style="box-sizing:border-box;width:100%;padding:12px;border:1px solid #c9c5b8;border-radius:9px;font-size:1rem;">
+      <label for="authPassword" style="display:block;font-weight:700;margin:14px 0 6px;">비밀번호</label>
+      <div style="display:flex;gap:7px;align-items:stretch;">
+        <input id="authPassword" name="password" type="password" required minlength="6" autocomplete="current-password" placeholder="비밀번호 입력" style="box-sizing:border-box;min-width:0;flex:1;padding:12px;border:1px solid #c9c5b8;border-radius:9px;font-size:1rem;">
+        <button type="button" id="toggleAuthPassword" class="folder-btn" onclick="toggleAuthPasswordVisibility()" aria-label="비밀번호 보기" style="min-width:68px;">보기</button>
+      </div>
+      <div id="confirmPasswordRow" style="display:none;margin-top:12px;">
+        <label for="authPasswordConfirm" style="display:block;font-weight:700;margin:0 0 6px;">비밀번호 확인</label>
+        <div style="display:flex;gap:7px;align-items:stretch;">
+          <input id="authPasswordConfirm" name="passwordConfirm" type="password" minlength="6" autocomplete="new-password" placeholder="비밀번호를 다시 입력" style="box-sizing:border-box;min-width:0;flex:1;padding:12px;border:1px solid #c9c5b8;border-radius:9px;font-size:1rem;">
+          <button type="button" id="toggleAuthPasswordConfirm" class="folder-btn" onclick="toggleAuthPasswordConfirmVisibility()" aria-label="비밀번호 확인 보기" style="min-width:68px;">보기</button>
+        </div>
+      </div>
+      <button type="button" id="forgotPasswordBtn" onclick="sendPasswordReset()" style="display:block;margin:10px 0 4px;padding:0;border:0;background:transparent;color:#426b4d;text-decoration:underline;cursor:pointer;font-size:.9rem;">비밀번호를 잊으셨나요?</button>
+      <label id="rememberEmailRow" style="display:flex;align-items:center;gap:8px;margin:13px 0;font-size:.9rem;"><input id="rememberEmail" type="checkbox"> 이메일 기억하기</label>
+      <p style="font-size:.78rem;color:#657166;line-height:1.5;margin:8px 0 14px;">비밀번호는 이 사이트에 저장하지 않습니다. 브라우저가 비밀번호 저장을 제안하면 브라우저의 안전한 비밀번호 관리 기능을 이용할 수 있어요.</p>
+      <p id="authDialogError" role="status" style="min-height:1.2em;color:#a13b2d;font-size:.88rem;overflow-wrap:anywhere;"></p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" class="folder-btn" onclick="closeAuthDialog()">취소</button>
+        <button type="submit" id="authSubmitBtn" class="folder-btn" style="background:var(--primary);color:white;border-color:var(--primary);">로그인</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 </body>
 </html>
