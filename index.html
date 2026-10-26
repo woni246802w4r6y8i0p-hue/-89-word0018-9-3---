@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
     
     <style>
         :root {
@@ -1746,11 +1747,15 @@ nav {
 <div id="adminModal" class="modal-overlay">
     <div class="modal-card">
         <h3>🛡️ 관리자 제재 센터</h3>
-        <div style="background:#f1f5f9; padding:12px; border-radius:12px; margin-bottom:14px; border:1px solid var(--border-color);">
-            <label style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom:4px;">🔐 관리자 비밀번호 재설정</label>
-            <p style="font-size:.78rem;line-height:1.5;margin:5px 0 8px;">보안상 기존 비밀번호를 확인하거나 표시할 수는 없습니다. 관리자 계정 이메일로 재설정 링크를 보낼 수 있습니다.</p>
-            <button class="folder-btn" style="background-color:var(--primary); color:white; border-color:var(--primary);" onclick="changeAdminPassword()">관리자 이메일로 재설정 링크 보내기</button>
-            <p id="adminPasswordResetStatus" role="status" style="font-size:.78rem;margin:7px 0 0;overflow-wrap:anywhere;"></p>
+        <div style="background:#eff6ff; padding:12px; border-radius:12px; margin-bottom:14px; border:1px solid #bfdbfe;">
+            <label style="display:block;font-size:.85rem;font-weight:700;color:#1d4ed8;margin-bottom:5px;">🔑 회원 비밀번호 복구 지원</label>
+            <p style="font-size:.78rem;line-height:1.55;margin:5px 0 8px;">회원의 이메일 주소로 비밀번호 재설정 링크를 생성합니다. 메일이 도착하지 않을 때 관리자가 링크를 복사해 본인 확인 후 사용자에게 안전한 경로로 전달할 수 있습니다. 기존 비밀번호를 조회하거나 직접 확인할 수는 없습니다.</p>
+            <input id="adminRecoveryEmail" type="email" autocomplete="email" placeholder="회원의 가입 이메일 주소" style="width:100%;padding:9px;margin-bottom:7px;">
+            <button class="folder-btn" style="background:#1d4ed8;color:white;border-color:#1d4ed8;width:100%;" onclick="createMemberPasswordRecoveryLink()">회원 재설정 링크 생성</button>
+            <p id="memberPasswordRecoveryStatus" role="status" style="font-size:.78rem;margin:7px 0 0;overflow-wrap:anywhere;"></p>
+            <textarea id="memberPasswordRecoveryLink" readonly aria-label="회원 비밀번호 재설정 링크" placeholder="생성된 링크가 여기에 표시됩니다" style="display:none;width:100%;min-height:75px;margin-top:8px;padding:8px;overflow-wrap:anywhere;"></textarea>
+            <button id="copyMemberPasswordRecoveryLinkBtn" class="folder-btn" style="display:none;margin-top:6px;width:100%;" onclick="copyMemberPasswordRecoveryLink()">재설정 링크 복사</button>
+            <p style="font-size:.72rem;color:#92400e;line-height:1.5;margin-top:7px;">주의: 이 링크는 비밀번호 변경 권한이 있는 민감한 링크입니다. 사용자 본인임을 확인한 뒤에만 전달하고, 공개 채팅이나 게시판에는 올리지 마세요.</p>
         </div>
         <div style="padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:12px;">
           <b>⛔ 회원 활동 정지</b>
@@ -2273,28 +2278,59 @@ measurementId: "G-P34YLD61N1"
         openAdminModal();
     }
 
-    async function changeAdminPassword() {
-        const status = document.getElementById('adminPasswordResetStatus');
-        if (!status) return;
-        if (!auth || !currentUser || !isActiveAdmin()) {
-            status.style.color = '#a13b2d';
-            status.textContent = '활성 관리자 계정으로 로그인해야 합니다.';
+    async function createMemberPasswordRecoveryLink() {
+        const status = document.getElementById('memberPasswordRecoveryStatus');
+        const linkBox = document.getElementById('memberPasswordRecoveryLink');
+        const copyBtn = document.getElementById('copyMemberPasswordRecoveryLinkBtn');
+        const email = (document.getElementById('adminRecoveryEmail')?.value || '').trim();
+        if (status) { status.style.color = '#a13b2d'; status.textContent = ''; }
+        if (linkBox) { linkBox.value = ''; linkBox.style.display = 'none'; }
+        if (copyBtn) copyBtn.style.display = 'none';
+        if (!currentUser || !isActiveAdmin()) {
+            if (status) status.textContent = '활성 관리자 계정으로 로그인해야 합니다.';
             return;
         }
-        if (!currentUser.email) {
-            status.style.color = '#a13b2d';
-            status.textContent = '관리자 계정에 연결된 이메일 주소가 없습니다.';
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            if (status) status.textContent = '회원의 올바른 이메일 주소를 입력해 주세요.';
             return;
         }
-        status.style.color = '#657166';
-        status.textContent = '재설정 이메일을 요청하는 중...';
+        if (!firebase.functions) {
+            if (status) status.textContent = 'Firebase Functions SDK를 불러오지 못했습니다. 페이지를 새로고침해 주세요.';
+            return;
+        }
+        if (status) { status.style.color = '#475569'; status.textContent = '관리자 권한과 회원 계정을 확인하고 링크를 생성하는 중…'; }
         try {
-            await auth.sendPasswordResetEmail(currentUser.email);
-            status.style.color = '#2f6b3c';
-            status.textContent = '관리자 이메일 주소로 재설정 이메일 발송을 요청했습니다. 받은편지함과 스팸함을 확인해주세요.';
+            const callable = firebase.app().functions('us-central1').httpsCallable('adminCreatePasswordResetLink');
+            const result = await callable({ email });
+            const link = result?.data?.link;
+            if (!link || typeof link !== 'string' || !link.startsWith('https://')) throw new Error('invalid-link-response');
+            if (linkBox) { linkBox.value = link; linkBox.style.display = 'block'; }
+            if (copyBtn) copyBtn.style.display = 'block';
+            if (status) { status.style.color = '#166534'; status.textContent = '재설정 링크를 생성했습니다. 회원 본인 확인 후 안전한 경로로 전달해 주세요.'; }
         } catch (error) {
-            status.style.color = '#a13b2d';
-            status.textContent = authErrorMessage(error);
+            console.error('회원 비밀번호 복구 링크 생성 실패', error);
+            const code = error?.code || '';
+            let message = '링크를 생성하지 못했습니다. Functions 배포 상태와 관리자 권한을 확인해 주세요.';
+            if (code.includes('permission-denied')) message = '관리자 권한이 확인되지 않아 요청이 거부되었습니다.';
+            else if (code.includes('not-found')) message = '해당 이메일로 가입된 회원을 찾지 못했습니다. 이메일 주소를 확인해 주세요.';
+            else if (code.includes('invalid-argument')) message = '이메일 주소 형식이 올바르지 않습니다.';
+            else if (code.includes('unauthenticated')) message = '로그인이 만료되었습니다. 다시 로그인해 주세요.';
+            else if (code.includes('functions/unavailable') || code.includes('unavailable')) message = '복구 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.';
+            if (status) { status.style.color = '#a13b2d'; status.textContent = message; }
+        }
+    }
+
+    async function copyMemberPasswordRecoveryLink() {
+        const link = document.getElementById('memberPasswordRecoveryLink')?.value || '';
+        const status = document.getElementById('memberPasswordRecoveryStatus');
+        if (!link) return;
+        try {
+            await navigator.clipboard.writeText(link);
+            if (status) { status.style.color = '#166534'; status.textContent = '링크를 복사했습니다. 본인 확인 후 안전하게 전달해 주세요.'; }
+        } catch (error) {
+            const box = document.getElementById('memberPasswordRecoveryLink');
+            box?.focus(); box?.select();
+            if (status) { status.style.color = '#a13b2d'; status.textContent = '자동 복사에 실패했습니다. 링크를 선택한 뒤 직접 복사해 주세요.'; }
         }
     }
 
