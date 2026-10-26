@@ -1312,7 +1312,7 @@ nav {
 </style>
 </head>
 <body>
-<div id="site-version-badge" title="사이트 버전 v1.3.0 · 2026-10-22" style="position:fixed;left:12px;bottom:12px;z-index:9998;padding:5px 9px;border:1px solid #d5d0c2;border-radius:999px;background:#f7f4eb;color:#53674e;font:600 11px/1.2 system-ui,sans-serif;box-shadow:0 2px 8px #00000012;">v1.3.0 · 2026-10-22</div>
+<div id="site-version-badge" title="사이트 버전 v1.5.0 · 2026-10-25" style="position:fixed;left:12px;bottom:12px;z-index:9998;padding:5px 9px;border:1px solid #d5d0c2;border-radius:999px;background:#f7f4eb;color:#53674e;font:600 11px/1.2 system-ui,sans-serif;box-shadow:0 2px 8px #00000012;">v1.5.0 · 2026-10-25</div>
 
 <div class="container">
     <header>
@@ -1328,6 +1328,8 @@ nav {
         <button class="folder-btn" onclick="openCloneMergeModal()">📋 복제/합치기</button>
         <button class="folder-btn" style="background-color:#FFF1E8; color:#8F3F1D; border-color:#E8C5B2;" onclick="openExcelModal()">📊 엑셀관리</button>
         <button class="folder-btn" id="adminToggleBtn" style="background-color:#64748b; color:white; border-color:#64748b;" onclick="handleAdminButton()">🔒 관리자</button>
+        <button class="folder-btn" id="supportContactBtn" style="background-color:#55745b;color:white;border-color:#55745b;" onclick="openSupportCenter(false)">💬 관리자에게 문의</button>
+        <button class="folder-btn" id="adminSupportInboxBtn" style="display:none;background-color:#8b5e3c;color:white;border-color:#8b5e3c;" onclick="openSupportCenter(true)">📨 문의함</button>
         <span id="syncStatus" style="font-size: 0.7rem; color: var(--success); font-weight: 600; width: 100%; text-align: right;">☁️ 연동됨</span>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;padding:8px;background:#FFF1E8;border-radius:10px;">
           <span id="authStatus" style="font-size:.82rem;flex:1;min-width:180px;">로그인 상태 확인 중...</span>
@@ -1673,6 +1675,8 @@ nav {
               <li>뜻·예문·해석·정답이 여러 개면 같은 순서로 <strong>/</strong>로 구분합니다.</li>
               <li>예문 빈칸은 <strong>_</strong>로 표시하고 정답 열에 답을 적습니다.</li>
             </ul>
+            <b style="display:block;margin-top:12px;">🖥️ 어떤 앱으로 편집하나요?</b>
+            <p style="margin:5px 0 0;line-height:1.6;font-size:.85rem;">Microsoft Excel, Google 스프레드시트, Mac의 Apple Numbers, 또는 무료 LibreOffice Calc를 사용할 수 있습니다. 설치 없이 쓰려면 <a href="https://www.microsoft365.com/launch/excel" target="_blank" rel="noopener noreferrer">웹용 Excel</a>이나 <a href="https://sheets.google.com" target="_blank" rel="noopener noreferrer">Google 스프레드시트</a>를 이용하세요. Google 스프레드시트에서 편집했다면 <strong>파일 → 다운로드 → Microsoft Excel(.xlsx)</strong>로 저장한 뒤 업로드하세요. 파일을 저장할 때 형식이 <strong>.xlsx</strong>인지 확인해 주세요.</p>
             <button type="button" class="folder-btn" style="margin-top:10px;" onclick="downloadExcelImportTemplate()">📄 엑셀 작성 양식 다운로드 (.xlsx)</button>
         </div>
         <div class="form-group">
@@ -1716,6 +1720,28 @@ nav {
     </div>
 </div>
 
+<!-- 관리자 1:1 고객센터 모달 창 -->
+<div id="supportModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:760px;">
+    <h3 id="supportModalTitle">💬 관리자에게 문의</h3>
+    <p id="supportIntro" style="font-size:.86rem;line-height:1.6;color:var(--text-secondary);">문의는 로그인한 계정과 연결되어 저장되며, 관리자와 이곳에서 답변을 주고받을 수 있습니다.</p>
+    <div id="supportCreatePanel" style="border:1px solid var(--border-color);border-radius:12px;padding:12px;margin-bottom:12px;">
+      <label for="supportSubjectInput">문의 제목</label>
+      <input id="supportSubjectInput" maxlength="120" placeholder="예: 단어장 사용 중 문제가 생겼어요" style="width:100%;margin:6px 0 8px;padding:10px;">
+      <label for="supportMessageInput">문의 내용</label>
+      <textarea id="supportMessageInput" maxlength="5000" rows="4" placeholder="문제 상황이나 궁금한 점을 자세히 적어주세요." style="width:100%;margin:6px 0 8px;padding:10px;"></textarea>
+      <button class="btn" style="background:var(--primary);" onclick="createSupportTicket()">문의 보내기</button>
+    </div>
+    <div style="display:grid;grid-template-columns: minmax(150px, .8fr) minmax(0, 1.4fr);gap:12px;align-items:start;">
+      <div><b style="font-size:.9rem;">문의 목록</b><div id="supportTicketList" style="max-height:320px;overflow:auto;margin-top:8px;"></div></div>
+      <div><b id="supportConversationTitle" style="font-size:.9rem;">대화를 선택하세요</b><div id="supportMessages" style="height:230px;overflow:auto;border:1px solid var(--border-color);border-radius:10px;padding:10px;margin:8px 0;background:var(--surface);"><p style="font-size:.82rem;color:var(--text-secondary);">목록에서 문의를 선택하면 대화가 표시됩니다.</p></div>
+      <textarea id="supportReplyInput" rows="3" maxlength="5000" placeholder="답변을 입력하세요..." style="width:100%;padding:9px;" disabled></textarea>
+      <button id="supportReplyBtn" class="btn" style="background:var(--primary);margin-top:6px;" onclick="sendSupportReply()" disabled>답변 보내기</button></div>
+    </div>
+    <div class="modal-btns" style="margin-top:16px;"><button class="btn" style="background:#94a3b8;" onclick="closeSupportCenter()">닫기</button></div>
+  </div>
+</div>
+
 <!-- 관리자 제재 센터 모달 창 -->
 <div id="adminModal" class="modal-overlay">
     <div class="modal-card">
@@ -1732,11 +1758,27 @@ nav {
           <p style="font-size:.8rem;margin:5px 0 8px;">대상 회원의 Firebase Authentication UID를 입력하세요. 이메일이 아니라 UID를 사용합니다.</p>
           <input id="moderationUidInput" type="text" placeholder="정지할 회원의 UID" style="width:100%;margin-bottom:7px;padding:9px;">
           <select id="moderationDuration" style="width:100%;padding:9px;margin-bottom:7px;">
-            <option value="1">1일 정지</option><option value="7">7일 정지</option><option value="30">30일 정지</option><option value="90">90일 정지</option><option value="permanent">영구 정지</option><option value="0">정지 해제</option>
+            <option value="messageOnly">메시지 작성 제한</option><option value="1">1일 활동 정지</option><option value="7">7일 활동 정지</option><option value="30">30일 활동 정지</option><option value="90">90일 활동 정지</option><option value="permanent">영구 활동 정지</option><option value="0">모든 제재 해제</option>
           </select>
           <input id="moderationReasonInput" type="text" placeholder="정지 사유 (필수)" style="width:100%;margin-bottom:7px;padding:9px;">
           <button class="folder-btn" style="background:var(--danger);color:white;border-color:var(--danger);width:100%;" onclick="applyModeration()">정지 적용 / 정지 해제</button>
           <p id="moderationStatus" style="font-size:.78rem;margin-top:7px;"></p>
+        </div>
+        <div style="padding:12px;background:#eef4e9;border:1px solid #cbd8c4;border-radius:12px;margin-bottom:12px;">
+          <b>📨 1:1 고객센터</b>
+          <p style="font-size:.82rem;margin:5px 0 8px;">사용자가 보낸 문의를 확인하고 답변합니다.</p>
+          <button class="folder-btn" style="background:#55745b;color:white;border-color:#55745b;width:100%;" onclick="closeAdminModal();openSupportCenter(true)">문의함 열기</button>
+        </div>
+        <div id="rootAdminPanel" style="display:none;padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;margin-bottom:12px;">
+          <b>👑 최고 관리자 · 관리자 위임/해제</b>
+          <p style="font-size:.8rem;margin:5px 0 8px;">대상 계정의 Firebase Authentication UID를 입력하세요. 최고 관리자 계정은 위임·해제 대상으로 변경할 수 없습니다.</p>
+          <input id="adminRoleUidInput" placeholder="관리자로 지정/해제할 UID" style="width:100%;padding:9px;margin-bottom:7px;">
+          <div style="display:flex;gap:7px;"><button class="folder-btn" onclick="setDelegatedAdmin(true)" style="flex:1;background:#2f6d45;color:white;">관리자 위임</button><button class="folder-btn" onclick="setDelegatedAdmin(false)" style="flex:1;background:#8b5e3c;color:white;">관리자 해제</button></div>
+        </div>
+        <div style="padding:12px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;margin-bottom:12px;">
+          <b>💬 관리자 전용 채팅</b><p style="font-size:.8rem;margin:5px 0 8px;">활성 관리자만 접근할 수 있습니다. 단체 대화 또는 UID를 지정한 1:1 대화를 선택하세요.</p>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;"><select id="adminChatMode" style="padding:8px;flex:1;min-width:120px;"><option value="group">관리자 단체 채팅</option><option value="direct">관리자 1:1 채팅</option></select><input id="adminChatPeerUid" placeholder="상대 관리자 UID (1:1)" style="padding:8px;flex:1;min-width:150px;"><button class="folder-btn" onclick="openAdminChat()">채팅 열기</button></div>
+          <div id="adminChatPanel" style="display:none;margin-top:9px;"><div id="adminChatMessages" style="height:180px;overflow:auto;background:white;border:1px solid #ddd6fe;border-radius:8px;padding:8px;"></div><div style="display:flex;gap:6px;margin-top:6px;"><input id="adminChatInput" maxlength="2000" placeholder="관리자에게 메시지 보내기" style="padding:8px;flex:1;"><button class="folder-btn" onclick="sendAdminChatMessage()">전송</button></div></div>
         </div>
         <div id="adminReportListContainer" style="max-height: 280px; overflow-y: auto;"></div>
         <div class="modal-btns" style="margin-top:16px;">
@@ -1748,7 +1790,15 @@ nav {
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
     // 파이어베이스 클라우드 데이터베이스 설정
-    const firebaseConfig = { apiKey: "AIzaSyALE_AeJWrNyMrBa_ozB1gZC2n0TrVoW-I", authDomain: "aaa999-c666a.firebaseapp.com", projectId: "aaa999-c666a", storageBucket: "aaa999-c666a.firebasestorage.app", messagingSenderId: "783744613456", appId: "1:783744613456:web:40c1a55bfbe80ae0da6555", measurementId: "G-P34YLD61N1" };
+    const firebaseConfig = {
+apiKey: "AIzaSyALE_AeJWrNyMrBa_ozB1gZC2n0TrVoW-I",
+authDomain: "aaa999-c666a.firebaseapp.com",
+projectId: "aaa999-c666a",
+storageBucket: "aaa999-c666a.firebasestorage.app",
+messagingSenderId: "783744613456",
+appId: "1:783744613456:web:40c1a55bfbe80ae0da6555",
+measurementId: "G-P34YLD61N1"
+};
 
     let db = null;
     let auth = null;
@@ -1771,6 +1821,7 @@ nav {
                     updateAuthUI();
                 }, (e) => { console.warn('회원 제재 상태 확인 실패', e); updateAuthUI(); });
             }
+            refreshAdminRole();
             updateAuthUI();
         });
     } catch (e) {
@@ -1786,7 +1837,23 @@ nav {
     // Firebase Authentication UID가 보안 규칙의 ADMIN_UID와 일치해야 관리자 권한이 생깁니다.
     const ADMIN_UID = 'VCaH3aMdfdWL8pKEYjGzNOk9NMO2';
     let isAdminLoggedIn = false;
+    let delegatedAdminActive = false;
+    let adminChatUnsubscribe = null;
+    let activeAdminChatRoom = null;
     let currentModeration = null;
+    function isRootAdmin() { return !!currentUser && currentUser.uid === ADMIN_UID; }
+    function isActiveAdmin() { return !!currentUser && currentUser.emailVerified === true && (isRootAdmin() || delegatedAdminActive); }
+    async function refreshAdminRole() {
+      delegatedAdminActive = false;
+      if (currentUser && currentUser.emailVerified && currentUser.uid !== ADMIN_UID && db) {
+        try { const snap = await db.collection('adminRoles').doc(currentUser.uid).get(); delegatedAdminActive = snap.exists && snap.data().active === true && snap.data().role === 'admin'; } catch(e) { console.warn('관리자 권한 조회 실패', e); }
+      }
+      updateAuthUI();
+    }
+    let supportAdminMode = false;
+    let selectedSupportTicketId = null;
+    let supportMessagesUnsubscribe = null;
+    let supportTicketsCache = [];
     let isAscending = true;
 
     let summaryState = {
@@ -1863,6 +1930,8 @@ nav {
             if (refreshBtn) refreshBtn.style.display = 'none';
             logoutBtn.style.display = 'none';
         }
+        const adminInboxBtn = document.getElementById('adminSupportInboxBtn');
+        if (adminInboxBtn) adminInboxBtn.style.display = isActiveAdmin() ? 'inline-block' : 'none';
     }
 
     function isCurrentlySuspended(record) {
@@ -1990,10 +2059,135 @@ nav {
         return false;
     }
 
+    function openSupportCenter(adminMode) {
+        supportAdminMode = !!adminMode;
+        selectedSupportTicketId = null;
+        if (supportMessagesUnsubscribe) { supportMessagesUnsubscribe(); supportMessagesUnsubscribe = null; }
+        if (!db) { alert('Firebase 연결을 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.'); return; }
+        if (!currentUser) {
+            alert('1:1 문의를 이용하려면 먼저 회원가입 또는 로그인해 주세요.');
+            return;
+        }
+        if (supportAdminMode && !isActiveAdmin()) {
+            alert('관리자 계정만 전체 문의함을 열 수 있습니다.'); return;
+        }
+        document.getElementById('supportModalTitle').textContent = supportAdminMode ? '📨 관리자 문의함' : '💬 관리자에게 문의';
+        document.getElementById('supportIntro').textContent = supportAdminMode
+          ? '사용자가 보낸 문의를 선택해 1:1로 답변할 수 있습니다. 각 문의와 대화는 작성자와 관리자에게만 표시됩니다.'
+          : '문의는 로그인한 계정과 연결되어 저장됩니다. 아래에서 새 문의를 보내거나 기존 문의에 대한 관리자 답변을 확인할 수 있습니다.';
+        document.getElementById('supportCreatePanel').style.display = supportAdminMode ? 'none' : 'block';
+        document.getElementById('supportReplyInput').placeholder = supportAdminMode ? '관리자 답변을 입력하세요...' : '추가 메시지를 입력하세요...';
+        document.getElementById('supportTicketList').innerHTML = '<p style="font-size:.82rem;">문의 목록을 불러오는 중...</p>';
+        document.getElementById('supportMessages').innerHTML = '<p style="font-size:.82rem;color:var(--text-secondary);">문의 목록에서 항목을 선택하세요.</p>';
+        document.getElementById('supportConversationTitle').textContent = '대화를 선택하세요';
+        document.getElementById('supportReplyInput').disabled = true;
+        document.getElementById('supportReplyBtn').disabled = true;
+        document.getElementById('supportModal').style.display = 'flex';
+        let query = db.collection('supportThreads');
+        if (!supportAdminMode) query = query.where('ownerUid', '==', currentUser.uid);
+        query.get().then(snapshot => {
+          supportTicketsCache = snapshot.docs.map(doc => ({id:doc.id, ...doc.data()}));
+          supportTicketsCache.sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+          renderSupportTicketList();
+        }).catch(error => {
+          console.error('문의 목록 불러오기 실패', error);
+          document.getElementById('supportTicketList').innerHTML = '<p style="font-size:.82rem;color:#b91c1c;">문의 목록을 불러오지 못했습니다. Firestore 보안 규칙을 확인해 주세요.</p>';
+        });
+    }
+
+    function renderSupportTicketList() {
+        const list = document.getElementById('supportTicketList');
+        list.innerHTML = '';
+        if (!supportTicketsCache.length) {
+          list.innerHTML = '<p style="font-size:.82rem;color:var(--text-secondary);">아직 문의가 없습니다.</p>'; return;
+        }
+        supportTicketsCache.forEach(ticket => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'folder-btn';
+          button.style.cssText = 'display:block;width:100%;text-align:left;white-space:normal;margin:5px 0;padding:9px;background:' + (ticket.id === selectedSupportTicketId ? '#e5eadf' : 'var(--surface)') + ';color:var(--text-primary);border:1px solid var(--border-color);';
+          const status = ticket.status === 'closed' ? '종료' : '진행 중';
+          button.innerHTML = '<b style="display:block;overflow-wrap:anywhere;">' + escapeHtml(ticket.subject || '제목 없는 문의') + '</b><small>' + status + (supportAdminMode ? ' · ' + escapeHtml(ticket.ownerEmail || '회원') : '') + '</small>';
+          button.onclick = () => openSupportConversation(ticket.id);
+          list.appendChild(button);
+        });
+    }
+
+    function openSupportConversation(ticketId) {
+        selectedSupportTicketId = ticketId;
+        renderSupportTicketList();
+        const ticket = supportTicketsCache.find(t => t.id === ticketId);
+        if (!ticket) return;
+        document.getElementById('supportConversationTitle').textContent = ticket.subject || '문의 대화';
+        document.getElementById('supportReplyInput').disabled = false;
+        document.getElementById('supportReplyBtn').disabled = false;
+        if (supportMessagesUnsubscribe) supportMessagesUnsubscribe();
+        supportMessagesUnsubscribe = db.collection('supportThreads').doc(ticketId).collection('messages').orderBy('createdAt','asc').onSnapshot(snapshot => {
+          const box = document.getElementById('supportMessages'); box.innerHTML = '';
+          snapshot.forEach(doc => {
+            const msg = doc.data();
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:8px;margin:6px 0;border-radius:9px;background:' + (msg.senderUid === ADMIN_UID ? '#e8eee3' : '#f4efe4') + ';overflow-wrap:anywhere;';
+            const date = msg.createdAt && msg.createdAt.toDate ? msg.createdAt.toDate().toLocaleString('ko-KR') : '방금 전';
+            const role = msg.senderUid === ADMIN_UID ? '관리자' : '문의자';
+            const strong = document.createElement('b'); strong.textContent = role + ' · ' + date;
+            const body = document.createElement('div'); body.style.whiteSpace = 'pre-wrap'; body.style.marginTop = '4px'; body.textContent = msg.text || '';
+            item.append(strong, body); box.appendChild(item);
+          });
+          box.scrollTop = box.scrollHeight;
+        }, error => {
+          console.error('문의 대화 구독 실패', error);
+          document.getElementById('supportMessages').textContent = '대화를 불러오지 못했습니다. Firestore 보안 규칙을 확인해 주세요.';
+        });
+    }
+
+    async function createSupportTicket() {
+        if (!currentUser || !db) { alert('로그인 후 이용해 주세요.'); return; }
+        const subject = document.getElementById('supportSubjectInput').value.trim();
+        const message = document.getElementById('supportMessageInput').value.trim();
+        if (!subject || !message) { alert('문의 제목과 내용을 모두 입력해 주세요.'); return; }
+        try {
+          const ticketRef = db.collection('supportThreads').doc();
+          const now = firebase.firestore.FieldValue.serverTimestamp();
+          await ticketRef.set({ ownerUid: currentUser.uid, ownerEmail: currentUser.email || '', ownerName: editorName, subject: subject.slice(0,120), status: 'open', createdAt: now, updatedAt: now });
+          await ticketRef.collection('messages').add({ senderUid: currentUser.uid, senderEmail: currentUser.email || '', text: message.slice(0,5000), createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          document.getElementById('supportSubjectInput').value = '';
+          document.getElementById('supportMessageInput').value = '';
+          alert('문의가 접수되었습니다. 이 창에서 관리자 답변을 확인할 수 있습니다.');
+          openSupportCenter(false);
+        } catch (error) {
+          console.error('문의 접수 실패', error);
+          alert('문의 접수에 실패했습니다. Firestore 보안 규칙에 supportThreads 접근 권한이 설정되어 있는지 확인해 주세요.\n' + (error.message || ''));
+        }
+    }
+
+    async function sendSupportReply() {
+        if (!currentUser || !db || !selectedSupportTicketId) { alert('먼저 문의를 선택해 주세요.'); return; }
+        if (supportAdminMode && !isActiveAdmin()) { alert('관리자 권한이 없습니다.'); return; }
+        const input = document.getElementById('supportReplyInput');
+        const message = input.value.trim();
+        if (!message) { alert('메시지를 입력해 주세요.'); return; }
+        try {
+          const ref = db.collection('supportThreads').doc(selectedSupportTicketId);
+          await ref.collection('messages').add({ senderUid: currentUser.uid, senderEmail: currentUser.email || '', text: message.slice(0,5000), createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          await ref.update({ updatedAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'open' });
+          input.value = '';
+        } catch (error) {
+          console.error('문의 답변 전송 실패', error);
+          alert('메시지를 보내지 못했습니다. Firestore 보안 규칙을 확인해 주세요.\n' + (error.message || ''));
+        }
+    }
+
+    function closeSupportCenter() {
+        document.getElementById('supportModal').style.display = 'none';
+        if (supportMessagesUnsubscribe) { supportMessagesUnsubscribe(); supportMessagesUnsubscribe = null; }
+        selectedSupportTicketId = null;
+    }
+
     function handleAdminButton() {
         if (!currentUser) { alert('관리자 기능을 사용하려면 먼저 관리자 계정으로 로그인하세요.'); return; }
-        if (currentUser.uid !== ADMIN_UID || ADMIN_UID === 'REPLACE_WITH_ADMIN_UID') {
-            alert('관리자 권한이 없습니다. 관리자 UID 설정을 확인하세요.'); return;
+        if (!isActiveAdmin()) {
+            alert('활성 관리자 계정으로 로그인해야 합니다.'); return;
         }
         isAdminLoggedIn = true;
         openAdminModal();
@@ -2004,7 +2198,7 @@ nav {
     }
 
     async function applyModeration() {
-        if (!currentUser || currentUser.uid !== ADMIN_UID || ADMIN_UID === 'REPLACE_WITH_ADMIN_UID') {
+        if (!isActiveAdmin()) {
             alert('관리자 권한이 없습니다.'); return;
         }
         if (!db) { alert('Firebase 연결이 없습니다.'); return; }
@@ -2013,22 +2207,22 @@ nav {
         const reason = document.getElementById('moderationReasonInput').value.trim();
         const status = document.getElementById('moderationStatus');
         if (!uid) { alert('정지할 회원의 UID를 입력하세요.'); return; }
-        if (uid === ADMIN_UID) { alert('관리자 본인은 이 기능으로 정지할 수 없습니다.'); return; }
+        if (uid === ADMIN_UID || (await db.collection('adminRoles').doc(uid).get()).exists) { alert('최고 관리자 또는 관리자 계정은 일반 제재 기능으로 정지할 수 없습니다. 최고 관리자가 역할을 먼저 해제해야 합니다.'); return; }
         if (duration !== '0' && !reason) { alert('정지 사유를 입력하세요.'); return; }
         try {
             if (duration === '0') {
-                // 정지 문서를 삭제하면 보안 규칙에서 즉시 편집 권한이 복구됩니다.
                 await db.collection('moderation').doc(uid).delete();
-                status.textContent = '정지가 해제되었습니다. 해당 회원의 편집 권한이 즉시 복구됩니다.';
+                status.textContent = '모든 제재가 해제되었습니다.';
+            } else if (duration === 'messageOnly') {
+                await db.collection('moderation').doc(uid).set({ messageBlocked:true, permanent:false, suspendedUntil:null, reason,
+                    updatedAt:firebase.firestore.FieldValue.serverTimestamp(), updatedBy:currentUser.uid });
+                status.textContent = '메시지 작성 제한을 적용했습니다. 편집 권한은 유지됩니다.';
             } else {
                 const permanent = duration === 'permanent';
                 const suspendedUntil = permanent ? null : firebase.firestore.Timestamp.fromDate(new Date(Date.now() + Number(duration) * 86400000));
-                await db.collection('moderation').doc(uid).set({
-                    permanent, suspendedUntil, reason,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    updatedBy: currentUser.uid
-                });
-                status.textContent = permanent ? '영구 정지를 적용했습니다.' : duration + '일 정지를 적용했습니다.';
+                await db.collection('moderation').doc(uid).set({ permanent, suspendedUntil, messageBlocked:false, reason,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: currentUser.uid });
+                status.textContent = permanent ? '영구 활동 정지를 적용했습니다.' : duration + '일 활동 정지를 적용했습니다.';
             }
             document.getElementById('moderationUidInput').value = '';
             document.getElementById('moderationReasonInput').value = '';
@@ -2294,6 +2488,9 @@ nav {
         ['첫 번째 행','열 제목입니다. 단어 데이터는 두 번째 행부터 입력하세요.','단어 | 뜻 | 예문 | 예문해석 | 정답'],
         ['빈칸 규칙','문제로 낼 부분은 예문에서 _ 로 표시하고, 정답 열에 그 빈칸의 답을 적으세요.','I _ to school. | go'],
         ['중복 단어','현재 문서에 같은 단어가 있으면 기존 뜻과 예문이 표시되므로 확인하세요.',''],
+        ['편집 앱','Microsoft Excel, Google 스프레드시트, Apple Numbers(Mac), LibreOffice Calc로 편집할 수 있습니다.',''],
+        ['웹에서 편집','웹용 Excel 또는 Google 스프레드시트에서 파일을 열어 편집할 수 있습니다.',''],
+        ['저장 형식','편집이 끝나면 반드시 Microsoft Excel 통합 문서(.xlsx) 형식으로 저장한 뒤 업로드하세요. Google 스프레드시트는 파일 → 다운로드 → Microsoft Excel(.xlsx)을 선택합니다.',''],
         ['시트','첫 번째 시트인 “단어 입력”만 가져옵니다. 이 안내 시트는 가져오지 않습니다.','']
       ];
       const guideSheet = XLSX.utils.aoa_to_sheet(guideRows);
@@ -3010,6 +3207,7 @@ nav {
     }
 
     function openAdminModal() {
+        const rootPanel = document.getElementById('rootAdminPanel'); if (rootPanel) rootPanel.style.display = isRootAdmin() ? 'block' : 'none';
         const container = document.getElementById('adminReportListContainer');
         container.innerHTML = '';
         if (!reports || reports.length === 0) {
@@ -3033,6 +3231,44 @@ nav {
             });
         }
         document.getElementById('adminModal').style.display = 'flex';
+    }
+
+    async function setDelegatedAdmin(makeAdmin) {
+      if (!isRootAdmin() || !db) { alert('최고 관리자만 관리자 권한을 위임하거나 해제할 수 있습니다.'); return; }
+      const uid = document.getElementById('adminRoleUidInput').value.trim();
+      if (!uid) { alert('대상 UID를 입력하세요.'); return; }
+      if (uid === ADMIN_UID) { alert('최고 관리자 권한은 변경할 수 없습니다.'); return; }
+      try {
+        const ref = db.collection('adminRoles').doc(uid);
+        if (makeAdmin) await ref.set({ role:'admin', active:true, assignedBy:currentUser.uid, updatedAt:firebase.firestore.FieldValue.serverTimestamp() });
+        else await ref.delete();
+        alert(makeAdmin ? '관리자 권한을 위임했습니다.' : '관리자 권한을 해제했습니다.');
+        document.getElementById('adminRoleUidInput').value = '';
+      } catch(e) { console.error(e); alert('관리자 역할 변경에 실패했습니다. adminRoles 보안 규칙을 확인하세요.'); }
+    }
+
+    function openAdminChat() {
+      if (!isActiveAdmin() || !db) { alert('활성 관리자만 채팅에 접근할 수 있습니다.'); return; }
+      const mode = document.getElementById('adminChatMode').value;
+      const peer = document.getElementById('adminChatPeerUid').value.trim();
+      if (mode === 'direct' && (!peer || peer === currentUser.uid)) { alert('다른 관리자 UID를 입력하세요.'); return; }
+      const roomId = mode === 'group' ? 'admin_group' : ['direct', currentUser.uid, peer].sort().join('_');
+      activeAdminChatRoom = roomId;
+      const roomRef = db.collection('adminChats').doc(roomId);
+      roomRef.get().then(snap => { if (!snap.exists) return roomRef.set({ type: mode, participants: mode === 'direct' ? [currentUser.uid, peer].sort() : [], createdBy: currentUser.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() }); }).catch(e => console.warn('채팅방 준비 실패', e));
+      if (adminChatUnsubscribe) { adminChatUnsubscribe(); adminChatUnsubscribe = null; }
+      const panel = document.getElementById('adminChatPanel'); panel.style.display = 'block';
+      const box = document.getElementById('adminChatMessages'); box.textContent = '메시지를 불러오는 중…';
+      adminChatUnsubscribe = db.collection('adminChats').doc(roomId).collection('messages').orderBy('createdAt','asc').limit(100).onSnapshot(snap => {
+        box.innerHTML = '';
+        snap.forEach(doc => { const m=doc.data(); const item=document.createElement('div'); item.style.cssText='padding:6px;margin:5px 0;background:'+(m.senderUid===currentUser.uid?'#e8eee3':'#f5f3ff')+';border-radius:7px;overflow-wrap:anywhere;'; const head=document.createElement('b'); head.textContent=(m.senderEmail||m.senderUid)+' · '+(m.createdAt&&m.createdAt.toDate?m.createdAt.toDate().toLocaleString('ko-KR'):'방금 전'); const body=document.createElement('div'); body.style.whiteSpace='pre-wrap'; body.textContent=m.text||''; item.append(head,body); box.appendChild(item); }); box.scrollTop=box.scrollHeight;
+      }, e => { console.error(e); box.textContent='채팅을 불러오지 못했습니다. 활성 관리자 여부와 Firestore 규칙을 확인하세요.'; });
+    }
+    async function sendAdminChatMessage() {
+      if (!isActiveAdmin() || !db || !activeAdminChatRoom) { alert('먼저 관리자 채팅을 열어주세요.'); return; }
+      const input=document.getElementById('adminChatInput'); const text=input.value.trim(); if(!text) return;
+      try { await db.collection('adminChats').doc(activeAdminChatRoom).collection('messages').add({ senderUid:currentUser.uid, senderEmail:currentUser.email||'', text:text.slice(0,2000), createdAt:firebase.firestore.FieldValue.serverTimestamp() }); input.value=''; }
+      catch(e) { console.error(e); alert('전송 실패. 관리자 채팅 Firestore 규칙을 확인하세요.'); }
     }
 
     function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
